@@ -58,7 +58,7 @@ if(CONFIG_BT_HCI_HOST)
     endif()
   endif()
 
-  if(CONFIG_BT_DIRECTION_FINDING)
+  if(CONFIG_BT_DF)
     zephyr_library_sources(
       direction.c
       )
