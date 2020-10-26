@@ -209,6 +209,22 @@ uint32_t ll_radio_state_is_idle(void);
 
 /* Direction Finding */
 
+/* @brief Function sets CTE transmission parameters for a connection.
+ *
+ * @param[in]handle			Connection handle.
+ * @param[in]cte_types			Bitfield holding information about
+ *					allowed CTE types.
+ * @param[in]switching_patterns_len	Numbe of antenna IDs in switching
+ *					pattern.
+ * @param[in]ant_id			Array od antenna IDs that are antenna
+ *					switching pattern.
+ *
+ * @return Status of command completion.
+ */
+uint8_t ll_df_set_conn_cte_tx_params(uint16_t handle, uint8_t cte_types,
+				     uint8_t switching_patterns_len,
+				     uint8_t *ant_id);
+
 /* @brief Function provides information about Direction Finding
  * antennae switching and sampling related settings.
  *
