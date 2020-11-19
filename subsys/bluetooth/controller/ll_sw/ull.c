@@ -37,6 +37,7 @@
 #include "lll_scan.h"
 #include "lll_sync.h"
 #include "lll_conn.h"
+#include "lll_df.h"
 #include "ull_adv_types.h"
 #include "ull_scan_types.h"
 #include "ull_sync_types.h"
@@ -430,6 +431,13 @@ int ll_init(struct k_sem *sem_rx)
 		return err;
 	}
 #endif /* CONFIG_BT_CONN */
+
+#if IS_ENABLED(CONFIG_BT_CTLR_DF)
+	err = lll_df_init();
+	if (err) {
+		return err;
+	}
+#endif
 
 #if defined(CONFIG_BT_CTLR_USER_EXT)
 	err = ull_user_init();
@@ -1620,6 +1628,11 @@ static void perform_lll_reset(void *param)
 	err = lll_conn_reset();
 	LL_ASSERT(!err);
 #endif /* CONFIG_BT_CONN */
+
+#if IS_ENABLED(CONFIG_BT_CTLR_DF)
+	err = lll_df_reset();
+	LL_ASSERT(!err);
+#endif /* CONFIG_BT_CTLR_DF */
 
 #if !defined(CONFIG_BT_CTLR_ZLI)
 	k_sem_give(param);
