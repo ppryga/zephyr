@@ -1,0 +1,63 @@
+# Copyright (c) 2020 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+description: |
+    Nordic DFE antennas matrix description
+
+    dfegpio[n]-pin properties provide GPIO pins to Radio peripheral. Provided
+    GPIO pins are used to switch antennas e.g. to use 12 antennas 4 GPIO pins
+    must be provided, 4 GPIO pins support up to 16 antennas.
+
+    All dfegpio[n]-pin properties have required property set to false.
+    It depends on end user which Radio PSEL_GPIO[n] registers will be used
+    to drive antenna switches.
+    Nevertheless there is a requirement that at least two antennas are
+    available. That means at least one dfegpio[n]-pin must be provided,
+    to give Radio possibility to switch between these two antennas.
+
+compatible: "nordic,nrf-radio"
+
+include: [base.yaml]
+
+properties:
+    ant-num:
+      type: int
+      required: true
+      description: |
+        Number of available antennas.
+
+        Value zero means no antenna available. If provided value different than
+        zero, it must be greater or equal to two.
+
+    dfegpio0-pin:
+      type: int
+      required: false
+      description: Pin select for DFE pin 0
+    dfegpio1-pin:
+      type: int
+      required: false
+      description: Pin select for DFE pin 1
+    dfegpio2-pin:
+      type: int
+      required: false
+      description: Pin select for DFE pin 2
+    dfegpio3-pin:
+      type: int
+      required: false
+      description: Pin select for DFE pin 3
+    dfegpio4-pin:
+      type: int
+      required: false
+      description: Pin select for DFE pin 4
+    dfegpio5-pin:
+      type: int
+      required: false
+      description: Pin select for DFE pin 5
+    dfegpio6-pin:
+      type: int
+      required: false
+      description: Pin select for DFE pin 6
+    dfegpio7-pin:
+      type: int
+      required: false
+      description: Pin select for DFE pin 7
