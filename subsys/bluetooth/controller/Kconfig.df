@@ -53,6 +53,14 @@ config BT_CTLR_DF_ANT_SWITCHING_TX
 	  Enable support for antenna switching during CTE transmission.
 	  Also known as Angle of Departure mode.
 
+config BT_CTLR_DF_ANT_SWITCHING_RX
+	bool "Enable antenna switching during CTE reception (AoA) feature"
+	depends on BT_CTLR_DF_ANT_SWITCHING_2US_SUPPORT
+	default y
+	help
+	  Enable support for antenna switching during CTE reception.
+	  Also known as Angle of Arrival mode.
+
 config BT_CTLR_DF_CONN_CTE_RSP
 	bool "Enable Connection CTE Response feature"
 	depends on BT_CTLR_DF_CTE_TX && BT_CONN
@@ -61,4 +69,18 @@ config BT_CTLR_DF_CONN_CTE_RSP
 	  Enable support for Bluetooth v5.1 Connection CTE Response feature
 	  in controller.
 
-endif # BT_CTRL_DIRECTION_FINDING
+# Customization setting to manage memory usage footprint
+
+config BT_CTLR_DF_MAX_ANT_SW_PATTERN_LEN
+	int "Maximum number of antenna switching patterns"
+	range 3 40 if SOC_COMPATIBLE_NRF
+	range 2 75 if !SOC_COMPATIBLE_NRF
+	default 12
+	help
+	  Defines maximum number of antenna switching patterns that controller
+	  will store. For nRF5x-based controllers, the hardware imposes
+	  the value is within range 3 to 40, where last value is maximum.
+	  For general use cases Bluetoot Core 5.1 spec. required the value
+	  to be within range 2 up to 75.
+
+endif # BT_CTLR_DF
