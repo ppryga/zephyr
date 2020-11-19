@@ -6,10 +6,18 @@
 
 #include "hal/debug.h"
 #include "ull_df.h"
+#include "lll_df.h"
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
 #define LOG_MODULE_NAME bt_ctlr_ull_df
 #include "common/log.h"
+
+uint8_t ll_df_set_cl_cte_tx_params(uint16_t adv_handle, uint8_t cte_len,
+				   uint8_t cte_type, uint8_t cte_count,
+				   uint8_t num_ant_ids, uint8_t *ant_ids)
+{
+	return BT_HCI_ERR_UNKNOWN_CMD;
+}
 
 uint8_t ll_df_set_conn_cte_tx_params(uint16_t handle, uint8_t cte_types,
 				     uint8_t switching_patterns_len,
@@ -46,7 +54,19 @@ void ll_df_read_ant_inf(uint8_t *switch_sample_rates,
 	 * lack of antenna support for Direction Finding
 	 */
 	*switch_sample_rates = 0;
-	*num_ant = 0;
-	*max_switch_pattern_len = 0;
-	*max_cte_len = 0;
+#if IS_ENABLED(CONFIG_BT_CTLR_DF_ANT_SWITCHING_TX) && \
+	IS_ENABLED(CONFIG_BT_CTLR_DF_ANT_SWITCHING_1US)
+	*switch_sample_rates |= DF_AOD_1US_TX;
+#endif
+#if IS_ENABLED(CONFIG_BT_CTLR_DF_CTE_RX) && \
+	IS_ENABLED(CONFIG_BT_CTLR_DF_CTE_RX_SAMPLING_1US)
+	*switch_sample_rates |= DF_AOD_1US_RX;
+#endif
+#if IS_ENABLED(CONFIG_BT_CTLR_DF_ANT_SWITCHING_RX) && \
+	IS_ENABLED(CONFIG_BT_CTLR_DF_CTE_RX_SAMPLING_1US)
+	*switch_sample_rates |= DF_AOA_1US;
+#endif
+	*num_ant = lll_df_ant_num_get();
+	*max_switch_pattern_len = LLL_DF_MAX_ANT_PATTERN_LEN;
+	*max_cte_len = LLL_DF_MAX_CTE_LEN;
 }
