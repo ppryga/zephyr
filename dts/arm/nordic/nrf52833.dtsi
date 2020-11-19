@@ -367,6 +367,12 @@
 			status = "okay";
 			label = "WDT";
 		};
+
+		dfe_ant: dfe_ant {
+			compatible = "nordic,nrf-dfe-ant";
+			status = "disabled";
+			ant-num = <0>;
+		};
 	};
 };
 
