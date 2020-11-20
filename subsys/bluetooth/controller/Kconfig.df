@@ -102,8 +102,8 @@ config BT_CTLR_DF_ADV_CTE_TX
 	depends on BT_CTLR_DF_CTE_TX && BT_CTLR_ADV_PERIODIC
 	default y
 	help
-	  Enable support for Bluetooth v5.1 Connectionless CTE Transmitter
-	  feature in controller.
+	  Enable support for Bluetooth v5.1 Connectionless CTE Response feature
+	  in controller.
 
 # Customization setting to manage memory usage footprint
 
