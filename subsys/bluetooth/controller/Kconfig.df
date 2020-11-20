@@ -92,6 +92,14 @@ config BT_CTLR_DF_CONN_CTE_RSP
 	  Enable support for Bluetooth v5.1 Connection CTE Response feature
 	  in controller.
 
+config BT_CTLR_DF_ADV_CTE_TX
+	bool "Enable Connectionless CTE Transmitter feature"
+	depends on BT_CTLR_DF_CTE_TX && BT_CTLR_ADV_PERIODIC
+	default y
+	help
+	  Enable support for Bluetooth v5.1 Connectionless CTE Transmitter
+	  feature in controller.
+
 # Customization setting to manage memory usage footprint
 
 config BT_CTLR_DF_MAX_ANT_SW_PATTERN_LEN
