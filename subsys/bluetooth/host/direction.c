@@ -5,11 +5,14 @@
  */
 #include <stdint.h>
 #include <assert.h>
-
-#include <bluetooth/hci.h>
-#include <bluetooth/conn.h>
 #include <sys/byteorder.h>
 
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/conn.h>
+#include <bluetooth/l2cap.h>
+#include <bluetooth/hci.h>
+
+#include "hci_core.h"
 #include "conn_internal.h"
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_CORE)
@@ -59,6 +62,42 @@ static int hci_df_read_ant_info(uint8_t *switch_sample_rates,
 	*max_cte_len = rp->max_cte_len;
 
 	net_buf_unref(rsp);
+
+	return 0;
+}
+
+/* @brief Function enables or disables CTE transmission for given
+ *        advertising set.
+ *
+ * @param[in] adv               Pointer to advertising set
+ * @param[in] enable            Enable or disable CTE TX
+ *
+ * @return Zero in case of success, other value in case of failure.
+ */
+static int hci_df_set_adv_cte_tx_enable(struct bt_le_ext_adv *adv,
+					bool enable)
+{
+	struct bt_hci_cp_le_set_per_adv_recv_enable *cp;
+	struct net_buf *buf;
+	int err;
+
+	buf = bt_hci_cmd_create(BT_HCI_OP_LE_SET_CL_CTE_TX_ENABLE, sizeof(*cp));
+	if (!buf) {
+		return -ENOBUFS;
+	}
+
+	cp = net_buf_add(buf, sizeof(*cp));
+	(void)memset(cp, 0, sizeof(*cp));
+
+	cp->handle = adv->handle;
+	cp->enable = enable ? 1 : 0;
+
+	err = bt_hci_cmd_send_sync(BT_HCI_OP_LE_SET_CL_CTE_TX_ENABLE,
+				   buf, NULL);
+
+	if (err) {
+		return err;
+	}
 
 	return 0;
 }

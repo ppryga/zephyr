@@ -34,8 +34,8 @@ config BT_CTLR_DF_CTE_TX
 	  Enable support for transmission of Constant Tone Extension in
 	  controller.
 
-config BT_CTLR_DF_ANT_SWITCHING_1US
-	bool "Enable support for 1us antenna switching slots"
+config BT_CTLR_DF_ANT_SWITCH_1US
+	bool "Enable support for 1us antenna switch slots"
 	depends on BT_CTLR_DF_ANT_SWITCH_1US_SUPPORT
 	default y
 	help
@@ -60,5 +60,13 @@ config BT_CTLR_DF_CONN_CTE_RSP
 	help
 	  Enable support for Bluetooth v5.1 Connection CTE Response feature
 	  in controller.
+
+config BT_CTLR_DF_ADV_CTE_TX
+	bool "Enable Connectionless CTE Transmitter feature"
+	depends on BT_CTLR_DF_CTE_TX && BT_CTLR_ADV_PERIODIC
+	default y
+	help
+	  Enable support for Bluetooth v5.1 Connectionless CTE Transmitter
+	  feature in controller.
 
 endif # BT_CTRL_DIRECTION_FINDING

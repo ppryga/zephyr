@@ -12,6 +12,18 @@
 #define LOG_MODULE_NAME bt_ctlr_ull_df
 #include "common/log.h"
 
+/* @brief Function enables of disables CTE TX for periodic advertising.
+ *
+ * @param[in] handle                    Advertising set handle.
+ * @param[in] cte_enable                Enable or disable CTE TX
+ *
+ * @return Status of command completion.
+ */
+uint8_t ll_df_set_cl_cte_tx_enable(uint8_t adv_handle, uint8_t cte_enable)
+{
+	return BT_HCI_ERR_CMD_DISALLOWED;
+}
+
 /* @brief Function sets CTE transmission parameters for a connection.
  *
  * @param[in]handle                     Connection handle.
