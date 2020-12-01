@@ -9,11 +9,11 @@
 #include <bluetooth/hci.h>
 #include <bluetooth/l2cap.h>
 #include <bluetooth/conn.h>
+#include <bluetooth/direction.h>
 #include <sys/byteorder.h>
 
 #include "hci_core.h"
 #include "conn_internal.h"
-#include "direction.h"
 #include "direction_internal.h"
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_CORE)
@@ -254,5 +254,38 @@ int le_df_init(void)
 	df_ant_info.num_ant = num_ant;
 
 	BT_INFO("DF initialized.");
+	return 0;
+}
+
+int bt_le_df_set_adv_cte_tx_params(struct bt_le_ext_adv *adv,
+				const struct bt_le_df_adv_cte_tx_params *params)
+{
+	__ASSERT_NO_MSG(adv);
+	__ASSERT_NO_MSG(params);
+
+	int err;
+
+	if (!BT_FEAT_LE_CONNECTIONLESS_CTE_TX(bt_dev.le.features)) {
+		return -ENOTSUP;
+	}
+
+	/* Check if BT_ADV_PARAMS_SET is set, because it implies the set
+	 * has already been created.
+	 */
+	if (!atomic_test_bit(adv->flags, BT_ADV_PARAMS_SET)) {
+		return -EINVAL;
+	}
+
+	if (atomic_test_bit(adv->flags, BT_PER_ADV_CTE_ENABLED)) {
+		return -EALREADY;
+	}
+
+	err = hci_df_set_cl_cte_tx_params(adv, params);
+	if (err) {
+		return err;
+	}
+
+	atomic_set_bit(adv->flags, BT_PER_ADV_CTE_PARAMS_SET);
+
 	return 0;
 }
