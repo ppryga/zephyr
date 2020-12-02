@@ -124,20 +124,6 @@ static size_t discovery_results_size;
 static size_t discovery_results_count;
 #endif /* CONFIG_BT_BREDR */
 
-struct cmd_state_set {
-	atomic_t *target;
-	int bit;
-	bool val;
-};
-
-void cmd_state_set_init(struct cmd_state_set *state, atomic_t *target, int bit,
-			bool val)
-{
-	state->target = target;
-	state->bit = bit;
-	state->val = val;
-}
-
 struct cmd_data {
 	/** HCI status of the command completion */
 	uint8_t  status;
@@ -156,6 +142,11 @@ static struct cmd_data cmd_data[CONFIG_BT_HCI_CMD_COUNT];
 
 #define cmd(buf) (&cmd_data[net_buf_id(buf)])
 #define acl(buf) ((struct acl_data *)net_buf_user_data(buf))
+
+void cmd_data_state_set(struct net_buf *buf, struct cmd_state_set *state)
+{
+	cmd(buf)->state = state;
+}
 
 /* HCI command buffers. Derive the needed size from BT_BUF_RX_SIZE since
  * the same buffer is also used for the response.

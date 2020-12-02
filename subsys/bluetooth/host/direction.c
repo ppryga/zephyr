@@ -5,12 +5,12 @@
  */
 #include <stdint.h>
 #include <assert.h>
+#include <sys/byteorder.h>
 
 #include <bluetooth/hci.h>
 #include <bluetooth/l2cap.h>
 #include <bluetooth/conn.h>
 #include <bluetooth/direction.h>
-#include <sys/byteorder.h>
 
 #include "hci_core.h"
 #include "conn_internal.h"
@@ -155,6 +155,47 @@ static int hci_df_read_ant_info(uint8_t *switch_sample_rates,
 	return 0;
 }
 
+/* @brief Function handles send of HCI commnad to enable or disables CTE
+ *        transmission for given advertising set.
+ *
+ * @param[in] adv               Pointer to advertising set
+ * @param[in] enable            Enable or disable CTE TX
+ *
+ * @return Zero in case of success, other value in case of failure.
+ */
+static int hci_df_set_adv_cte_tx_enable(struct bt_le_ext_adv *adv,
+					bool enable)
+{
+	struct bt_hci_cp_le_set_per_adv_recv_enable *cp;
+	struct cmd_state_set state;
+	struct net_buf *buf;
+	int err;
+
+	buf = bt_hci_cmd_create(BT_HCI_OP_LE_SET_CL_CTE_TX_ENABLE, sizeof(*cp));
+	if (!buf) {
+		return -ENOBUFS;
+	}
+
+	cp = net_buf_add(buf, sizeof(*cp));
+	(void)memset(cp, 0, sizeof(*cp));
+
+	cp->handle = adv->handle;
+	cp->enable = enable ? 1 : 0;
+
+	cmd_state_set_init(&state, adv->flags, BT_PER_ADV_CTE_ENABLED,
+			   enable);
+	cmd_data_state_set(buf, &state);
+
+	err = bt_hci_cmd_send_sync(BT_HCI_OP_LE_SET_CL_CTE_TX_ENABLE,
+				   buf, NULL);
+
+	if (err) {
+		return err;
+	}
+
+	return 0;
+}
+
 /* @brief Function sets CTE parameters for connection object
  *
  * @param[in] cte_types         Allowed response CTE types
@@ -276,4 +317,49 @@ int bt_df_set_adv_cte_tx_param(struct bt_le_ext_adv *adv,
 	}
 
 	return 0;
+}
+
+/* @brief Function enables or disables CTE transmission for given
+ *        advertising set.
+ *
+ * @param[in] adv               Pointer to advertising set
+ * @param[in] enable            Enable or disable CTE TX
+ *
+ * @return Zero in case of success, other value in case of failure.
+ */
+static int bt_df_set_adv_cte_tx_enabled(struct bt_le_ext_adv *adv,
+					   bool enable)
+{
+	int err;
+
+	if (!atomic_test_bit(adv->flags, BT_PER_ADV_PARAMS_SET)) {
+		return -EINVAL;
+	}
+
+	if (!atomic_test_bit(adv->flags, BT_PER_ADV_CTE_PARAMS_SET)) {
+		return -EINVAL;
+	}
+
+	if (!atomic_test_bit(adv->flags, BT_PER_ADV_CTE_ENABLED)) {
+		return -EALREADY;
+	}
+
+	err = hci_df_set_adv_cte_tx_enable(adv, enable);
+	if (err) {
+		return err;
+	}
+
+	return 0;
+}
+
+int bt_df_adv_cte_tx_enable(struct bt_le_ext_adv *adv)
+{
+	__ASSERT_NO_MSG(adv);
+	return bt_df_set_adv_cte_tx_enabled(adv, true);
+}
+
+int bt_df_adv_cte_tx_disable(struct bt_le_ext_adv *adv)
+{
+	__ASSERT_NO_MSG(adv);
+	return bt_df_set_adv_cte_tx_enabled(adv, false);
 }
