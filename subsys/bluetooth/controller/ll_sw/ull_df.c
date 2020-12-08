@@ -56,6 +56,14 @@ static int init_reset(void);
  */
 static struct lll_df_adv_cfg *ull_df_adv_cfg_acquire(void);
 
+/* @brief Function removes transmission CTE from periodic advertising.
+ *
+ * @param[in] df        Reference to Direction Finding configuration.
+ *
+ * @return      Zero in case of success, other value in case of failure.
+ */
+static inline int cte_remove(struct lll_df_adv_cfg *df);
+
 /* @brief Function performs ULL Direction Finding initialization
  *
  * @return      Zero in case of success, other value in case of failure.
@@ -202,7 +210,55 @@ uint8_t ll_df_set_cl_cte_tx_params(uint8_t adv_handle, uint8_t cte_len,
  */
 uint8_t ll_df_set_cl_cte_tx_enable(uint8_t adv_handle, uint8_t cte_enable)
 {
-	return BT_HCI_ERR_CMD_DISALLOWED;
+	struct ll_adv_set *adv;
+	struct lll_adv_sync *lll_sync;
+
+	/* Get the advertising set instance */
+	adv = ull_adv_is_created_get(adv_handle);
+	if (!adv) {
+		return BT_HCI_ERR_UNKNOWN_ADV_IDENTIFIER;
+	}
+	/* If there is no sync in advertising set, then the HCI_LE_Set_-
+	 * Periodic_Advertising_Parameters command was not issued before.
+	 */
+	lll_sync = adv->lll.sync;
+	if (!lll_sync) {
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
+
+	/* If df_cfg is NULL, then the HCI_LE_Set_Connectionless_CTE_Transmit_-
+	 * Parameters command was not issued before.
+	 */
+	if (!lll_sync->df_cfg) {
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
+
+	/* ToDo - check PHY used in Adv. Set. */
+
+	if (!cte_enable) {
+		if (!lll_sync->df_cfg->is_enabled) {
+			return BT_HCI_ERR_CMD_DISALLOWED;
+		}
+
+		if (lll_sync->df_cfg->is_started) {
+			int err = cte_remove(lll_sync->df_cfg);
+
+			if (err) {
+				return err;
+			}
+		}
+
+		lll_sync->df_cfg->is_enabled = 0U;
+		return 0;
+	} else {
+		if (lll_sync->df_cfg->is_enabled) {
+			return BT_HCI_ERR_CMD_DISALLOWED;
+		}
+
+		lll_sync->df_cfg->is_enabled = 1U;
+	}
+
+	return BT_HCI_ERR_SUCCESS;
 }
 
 /* @brief Function sets CTE transmission parameters for a connection.
@@ -286,4 +342,26 @@ static struct lll_df_adv_cfg *ull_df_adv_cfg_acquire(void)
 	df_adv_cfg->is_enabled = false;
 
 	return df_adv_cfg;
+}
+
+static inline int cte_remove(struct lll_df_adv_cfg *df)
+{
+	/* ToDo missing complete implementation */
+
+	/* ToDo: Remove cte_info from sync train PDUs.
+	 *
+	 * Note: Pay attention that TX of CTE may affect number
+	 * of AUX_CHAIN_IND in sync. train. It must be changed
+	 * to value required to send adv. sync. train data.
+	 */
+
+	if (df->is_started) {
+		/* TODO: if CTE is currently transmitted we must stop it,
+		 * but can't stop periodic advertising.
+		 * What if stop of TX CTE fails?
+		 */
+		df->is_started = 0U;
+	}
+
+	return 0U;
 }

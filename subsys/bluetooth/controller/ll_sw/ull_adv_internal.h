@@ -47,6 +47,7 @@ const uint8_t *ull_adv_pdu_update_addrs(struct ll_adv_set *adv,
 #if defined(CONFIG_BT_CTLR_ADV_EXT)
 
 #define ULL_ADV_PDU_HDR_FIELD_ADVA      BIT(0)
+#define ULL_ADV_PDU_HDR_FIELD_CTE_INFO  BIT(2)
 #define ULL_ADV_PDU_HDR_FIELD_SYNC_INFO BIT(5)
 #define ULL_ADV_PDU_HDR_FIELD_AD_DATA   BIT(8)
 
