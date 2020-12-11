@@ -65,7 +65,7 @@
  */
 
 /**
- * @defgroup devicetree-generic-id Node identifiers
+ * @defgroup devicetree-generic-id Node identifiers and helpers
  * @ingroup devicetree
  * @{
  */
@@ -349,6 +349,27 @@
  * @return node identifier for the node with the name referred to by 'child'
  */
 #define DT_CHILD(node_id, child) UTIL_CAT(node_id, DT_S_PREFIX(child))
+
+/**
+ * @brief Do node_id1 and node_id2 refer to the same node?
+ *
+ * Both "node_id1" and "node_id2" must be node identifiers for nodes
+ * that exist in the devicetree (if unsure, you can check with
+ * DT_NODE_EXISTS()).
+ *
+ * The expansion evaluates to 0 or 1, but may not be a literal integer
+ * 0 or 1.
+ *
+ * @param node_id1 first node identifer
+ * @param node_id2 second node identifier
+ * @return an expression that evaluates to 1 if the node identifiers
+ *         refer to the same node, and evaluates to 0 otherwise
+ */
+#define DT_SAME_NODE(node_id1, node_id2) \
+	(DT_DEP_ORD(node_id1) == (DT_DEP_ORD(node_id2)))
+
+/* Implementation note: distinct nodes have distinct node identifiers.
+ * See include/devicetree/ordinals.h. */
 
 /**
  * @}
