@@ -11,7 +11,8 @@ properties:
     clock-frequency:
       type: int
       required: false
-      description: Clock frequency the SPI peripheral is being driven at
+      description: |
+        Clock frequency the SPI peripheral is being driven at, in Hz.
     "#address-cells":
       required: true
       const: 1
@@ -23,3 +24,33 @@ properties:
     cs-gpios:
       type: phandle-array
       required: false
+      description: |
+        An array of chip select GPIOs to use. Each element
+        in the array specifies a GPIO. The index in the array
+        corresponds to the child node that the CS gpio controls.
+
+        Example:
+
+          spi@... {
+                  cs-gpios = <&gpio0 pin0 flags0>,
+                                <&gpio1 pin1 flags1>,
+                                ...;
+
+                  spi-device@0 {
+                          reg = <0>;
+                          ...
+                  };
+                  spi-device@1 {
+                          reg = <1>;
+                          ...
+                  };
+                  ...
+          };
+
+        The child node "spi-device@0" specifies a SPI device with
+        chip select controller "gpio0", pin "pin0", and devicetree
+        GPIO flags "flags0". Similarly, "spi-device@1" has CS GPIO
+        controller "gpio1", pin "pin1", and flags "flags1". Additional
+        devices can be configured in the same way.
+
+        If this property is not defined, no chip select GPIOs are set.
