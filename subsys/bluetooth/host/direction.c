@@ -187,7 +187,7 @@ static int hci_df_set_adv_cte_tx_enable(struct bt_le_ext_adv *adv,
 	}
 
 	cp = net_buf_add(buf, sizeof(*cp));
-	//(void)memset(cp, 0, sizeof(*cp));
+	(void)memset(cp, 0, sizeof(*cp));
 
 	cp->handle = adv->handle;
 	cp->enable = enable ? 1U : 0U;
