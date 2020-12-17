@@ -13,6 +13,7 @@
 #include "hal/ccm.h"
 #include "hal/radio.h"
 #include "hal/ticker.h"
+#include "hal/radio_df.h"
 
 #include "util/util.h"
 #include "util/memq.h"
@@ -25,6 +26,7 @@
 #include "lll_chan.h"
 #include "lll_adv.h"
 #include "lll_adv_sync.h"
+#include "lll_df.h"
 
 #include "lll_internal.h"
 #include "lll_adv_internal.h"
@@ -37,6 +39,7 @@
 
 static int init_reset(void);
 static int prepare_cb(struct lll_prepare_param *p);
+static void isr_done(void *param);
 
 int lll_adv_sync_init(void)
 {
@@ -94,6 +97,9 @@ static int init_reset(void)
 
 static int prepare_cb(struct lll_prepare_param *p)
 {
+#if IS_ENABLED(CONFIG_BT_CTLR_DF)
+	struct lll_df_adv_cfg *df_cfg;
+#endif /* CONFIG_BT_CTLR_DF */
 	struct lll_adv_sync *lll;
 	uint32_t ticks_at_event;
 	uint32_t ticks_at_start;
@@ -147,12 +153,27 @@ static int prepare_cb(struct lll_prepare_param *p)
 			     ((uint32_t)lll->crc_init[0])));
 	lll_chan_set(data_chan_use);
 
+#if IS_ENABLED(CONFIG_BT_CTLR_DF)
+	df_cfg = lll->adv->df_cfg;
+	if (df_cfg && df_cfg->is_started) {
+		lll_df_conf_cte_tx_enable(df_cfg->cte_type, df_cfg->cte_length,
+					  df_cfg->ant_sw_len, df_cfg->ant_ids);
+	}
+#endif /* CONFIG_BT_CTLR_DF */
+
 	pdu = lll_adv_sync_data_latest_get(lll, &upd);
 	radio_pkt_tx_set(pdu);
 
 	/* TODO: chaining */
-	radio_isr_set(lll_isr_done, lll);
-	radio_switch_complete_and_disable();
+	radio_isr_set(isr_done, lll);
+
+#if IS_ENABLED(CONFIG_BT_CTLR_DF)
+	if (df_cfg && df_cfg->is_started) {
+		radio_switch_complete_and_phy_end_disable();
+	} else {
+		radio_switch_complete_and_disable();
+	}
+#endif /* CONFIG_BT_CTLR_DF */
 
 	ticks_at_event = p->ticks_at_expire;
 	evt = HDR_LLL2EVT(lll);
@@ -193,4 +214,16 @@ static int prepare_cb(struct lll_prepare_param *p)
 	DEBUG_RADIO_START_A(1);
 
 	return 0;
+}
+
+static void isr_done(void *param)
+{
+	struct lll_adv_sync *lll;
+	lll = param;
+
+	if (lll->adv->df_cfg->is_started) {
+		lll_df_reset();
+	}
+
+	lll_isr_done(lll);
 }

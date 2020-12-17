@@ -379,7 +379,6 @@ uint32_t radio_is_done(void)
 		return 0;
 	}
 }
-
 #else /* !CONFIG_BT_CTLR_SW_SWITCH_SINGLE_TIMER */
 uint32_t radio_is_done(void)
 {
@@ -584,6 +583,16 @@ void radio_switch_complete_and_disable(void)
 {
 	NRF_RADIO->SHORTS =
 	    (RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_END_DISABLE_Msk);
+
+#if !defined(CONFIG_BT_CTLR_TIFS_HW)
+	hal_radio_sw_switch_disable();
+#endif /* !CONFIG_BT_CTLR_TIFS_HW */
+}
+
+void radio_switch_complete_and_phy_end_disable(void)
+{
+	NRF_RADIO->SHORTS =
+	    (RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_PHYEND_DISABLE_Msk);
 
 #if !defined(CONFIG_BT_CTLR_TIFS_HW)
 	hal_radio_sw_switch_disable();
