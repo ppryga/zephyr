@@ -225,7 +225,9 @@ uint8_t ll_df_set_cl_cte_tx_enable(uint8_t adv_handle, uint8_t cte_enable)
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 
-	/* ToDo - check PHY used in Adv. Set. */
+	if (adv->lll.phy_s == PHY_CODED) {
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
 
 	if (!cte_enable) {
 		if (!adv->lll.df_cfg->is_enabled) {
@@ -240,14 +242,26 @@ uint8_t ll_df_set_cl_cte_tx_enable(uint8_t adv_handle, uint8_t cte_enable)
 			}
 		}
 
-		/* ToDo remove cte_info from periodic adv header */
-
 		adv->lll.df_cfg->is_enabled = 0U;
 		return 0;
 	} else {
+		struct pdu_cte_info cte_info;
+		uint8_t err, ter_idx;
+
 		if (adv->lll.df_cfg->is_enabled) {
 			return BT_HCI_ERR_CMD_DISALLOWED;
 		}
+
+		cte_info.type = adv->lll.df_cfg->cte_type;
+		cte_info.time = adv->lll.df_cfg->cte_length;
+		err = ull_adv_sync_hdr_set_clear(adv,
+						 ULL_ADV_PDU_HDR_FIELD_CTE_INFO,
+						 0, &cte_info, &ter_idx);
+		if (err) {
+			return err;
+		}
+
+		lll_adv_sync_data_enqueue(adv->lll.sync, ter_idx);
 
 		adv->lll.df_cfg->is_enabled = 1U;
 	}

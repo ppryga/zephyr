@@ -35,11 +35,13 @@
 #include "lll_conn.h"
 #include "lll_internal.h"
 #include "lll_filter.h"
+#include "lll_df.h"
 
 #include "ull_adv_types.h"
 #include "ull_scan_types.h"
 #include "ull_conn_types.h"
 #include "ull_filter.h"
+#include "ull_df.h"
 
 #include "ull_adv_internal.h"
 #include "ull_scan_internal.h"
@@ -1255,6 +1257,9 @@ uint8_t ll_adv_enable(uint8_t enable)
 #if defined(CONFIG_BT_CTLR_ADV_PERIODIC)
 		if (sync_is_started) {
 			sync->is_started = sync_is_started;
+#if IS_ENABLED(CONFIG_BT_CTLR_DF)
+			ull_df_start(&sync->lll);
+#endif /* CONFIG_BT_CTLR_DF */
 		}
 #endif /* CONFIG_BT_CTLR_ADV_PERIODIC */
 	}
