@@ -44,4 +44,7 @@ struct bt_le_df_adv_cte_tx_params {
 int bt_le_df_set_adv_cte_tx_params(struct bt_le_ext_adv *adv,
 			       const struct bt_le_df_adv_cte_tx_params *params);
 
+int bt_le_df_adv_cte_tx_enable(struct bt_le_ext_adv *adv);
+int bt_le_df_adv_cte_tx_disable(struct bt_le_ext_adv *adv);
+
 #endif /* ZEPHYR_INCLUDE_BLUETOOTH_DF_H_ */

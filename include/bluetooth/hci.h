@@ -1536,8 +1536,8 @@ struct bt_hci_rp_le_read_ant_info {
 
 #define BT_HCI_OP_LE_SET_PER_ADV_RECV_ENABLE     BT_OP(BT_OGF_LE, 0x0059)
 struct bt_hci_cp_le_set_per_adv_recv_enable {
-	uint16_t handle;
-	uint8_t  enable;
+	uint8_t handle;
+	uint8_t enable;
 } __packed;
 
 #define BT_HCI_OP_LE_PER_ADV_SYNC_TRANSFER      BT_OP(BT_OGF_LE, 0x005a)
