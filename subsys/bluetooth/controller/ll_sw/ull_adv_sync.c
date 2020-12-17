@@ -56,6 +56,197 @@ static void ticker_op_cb(uint32_t status, void *param);
 static struct ll_adv_sync_set ll_adv_sync_pool[CONFIG_BT_CTLR_ADV_SYNC_SET];
 static void *adv_sync_free;
 
+/* @brief Set or clear fields in extended advertising header.
+ *
+ * @param[in]  adv              Advertising set.
+ * @param[in]  hdr_add_fields   Flag with information which fields add.
+ * @param[in]  hdr_rem_fields   Flag with information which fields remove.
+ * @param[in]  value            Pointer to data to be added to header.
+ *                              Content depends on the value of
+ *                              @p hdr_add_fields.
+ * @param[out] ter_idx          Index of new PDU.
+ *
+ * @Note
+ * @p value depends on the flag provided by @p hdr_add_fields:
+ * - ULL_ADV_PDU_HDR_FIELD_CTE_INFO: @p value points to single byte
+ * - ULL_ADV_PDU_HDR_FIELD_AD_DATA: @p value points to memory where first byte
+ *   is size of advertising data, following byte is a pointer to actual
+ *   advertising data.
+ * - ULL_ADV_PDU_HDR_FIELD_AUX_PTR: @p value parameter is not used
+ *
+ * @return Zero in case of success, other value in case of failure.
+ */
+uint8_t ull_adv_sync_hdr_set_clear(struct ll_adv_set *adv,
+				  uint16_t hdr_add_fields,
+				  uint16_t hdr_rem_fields,
+				  void *value,
+				  uint8_t *ter_idx)
+{
+	struct pdu_adv_com_ext_adv *ter_com_hdr, *ter_com_hdr_prev;
+	struct pdu_adv_ext_hdr *ter_hdr, ter_hdr_prev;
+	struct pdu_adv *ter_pdu, *ter_pdu_prev;
+	uint8_t *ter_dptr, *ter_dptr_prev;
+	uint16_t ter_len, ter_len_prev;
+	struct lll_adv_sync *lll_sync;
+	uint8_t *ad_data;
+	uint8_t ad_len;
+
+	lll_sync = adv->lll.sync;
+	if (!lll_sync) {
+		return BT_HCI_ERR_UNKNOWN_ADV_IDENTIFIER;
+	}
+
+	/* Get reference to previous tertiary PDU data */
+	ter_pdu_prev = lll_adv_sync_data_peek(lll_sync);
+	ter_com_hdr_prev = (void *)&ter_pdu_prev->adv_ext_ind;
+	ter_hdr = (void *)ter_com_hdr_prev->ext_hdr_adv_data;
+	ter_hdr_prev = *ter_hdr;
+	ter_dptr_prev = ter_hdr->data;
+
+	/* Get reference to new tertiary PDU data buffer */
+	ter_pdu = lll_adv_sync_data_alloc(lll_sync, ter_idx);
+	ter_pdu->type = ter_pdu_prev->type;
+	ter_pdu->rfu = 0U;
+	ter_pdu->chan_sel = 0U;
+
+	ter_pdu->tx_addr = ter_pdu_prev->tx_addr;
+	ter_pdu->rx_addr = ter_pdu_prev->rx_addr;
+
+	ter_com_hdr = (void *)&ter_pdu->adv_ext_ind;
+	ter_com_hdr->adv_mode = ter_com_hdr_prev->adv_mode;
+	ter_hdr = (void *)ter_com_hdr->ext_hdr_adv_data;
+	ter_dptr = ter_hdr->data;
+	*(uint8_t *)ter_hdr = 0U;
+
+	/* No AdvA in AUX_SYNC_IND */
+	/* No TargetA in AUX_SYNC_IND */
+
+	if ((hdr_add_fields & ULL_ADV_PDU_HDR_FIELD_CTE_INFO) ||
+	     (!(hdr_rem_fields & ULL_ADV_PDU_HDR_FIELD_CTE_INFO) &&
+	      ter_hdr_prev.cte_info)) {
+		ter_hdr->cte_info = 1;
+	}
+	if (ter_hdr_prev.cte_info) {
+		ter_dptr_prev += sizeof(struct pdu_cte_info);
+	}
+	if (ter_hdr->cte_info) {
+		ter_dptr += sizeof(struct pdu_cte_info);
+	}
+
+	/* No ADI in AUX_SYNC_IND */
+
+	/* AuxPtr - will be added if AUX_CHAIN_IND is required */
+	if ((hdr_add_fields & ULL_ADV_PDU_HDR_FIELD_AUX_PTR) ||
+	     (!(hdr_rem_fields & ULL_ADV_PDU_HDR_FIELD_AUX_PTR) &&
+	      ter_hdr_prev.aux_ptr)) {
+		ter_hdr->aux_ptr = 1;
+	}
+	if (ter_hdr->aux_ptr) {
+		ter_dptr += sizeof(struct pdu_adv_aux_ptr);
+	}
+	if (ter_hdr_prev.aux_ptr) {
+		ter_dptr_prev += sizeof(struct pdu_adv_aux_ptr);
+	}
+
+	/* No SyncInfo in AUX_SYNC_IND */
+
+	/* Tx Power flag */
+	if (ter_hdr_prev.tx_pwr) {
+		ter_dptr_prev++;
+
+		ter_hdr->tx_pwr = 1;
+		ter_dptr++;
+	}
+
+	/* TODO: ACAD */
+
+	/* AdvData */
+	/* Calc previous tertiary PDU len */
+	ter_len_prev = ull_adv_aux_hdr_len_calc(ter_com_hdr_prev,
+						&ter_dptr_prev);
+
+	/* Did we parse beyond PDU length? */
+	if (ter_len_prev > ter_pdu_prev->len) {
+		/* we should not encounter invalid length */
+		return BT_HCI_ERR_UNSPECIFIED;
+	}
+
+	/* Calc current tertiary PDU len */
+	ter_len = ull_adv_aux_hdr_len_calc(ter_com_hdr, &ter_dptr);
+	ull_adv_aux_hdr_len_fill(ter_com_hdr, ter_len);
+
+	/* Get Adv data from function parameters */
+	if (hdr_add_fields & ULL_ADV_PDU_HDR_FIELD_AD_DATA) {
+		ad_data = value;
+		ad_len = *ad_data;
+		++ad_data;
+
+		ad_data = (void *)sys_get_le32(ad_data);
+	} else if (!(hdr_rem_fields & ULL_ADV_PDU_HDR_FIELD_AD_DATA)) {
+		ad_len = ter_pdu_prev->len - ter_len_prev;
+		ad_data = ter_dptr_prev;
+	} else {
+		ad_len = 0;
+		ad_data = NULL;
+	}
+
+	/* Add AD len to tertiary PDU length */
+	ter_len += ad_len;
+
+	/* Check AdvData overflow */
+	if (ter_len > PDU_AC_PAYLOAD_SIZE_MAX) {
+		return BT_HCI_ERR_PACKET_TOO_LONG;
+	}
+
+	/* set the secondary PDU len */
+	ter_pdu->len = ter_len;
+
+	/* Start filling tertiary PDU payload based on flags from here
+	 * ==============================================================
+	 */
+
+	/* Fill AdvData in tertiary PDU */
+	memmove(ter_dptr, ad_data, ad_len);
+
+	/* TODO: Fill ACAD in tertiary PDU */
+
+	/* Tx Power */
+	if (ter_hdr->tx_pwr) {
+		*--ter_dptr = *--ter_dptr_prev;
+	}
+
+	/* No SyncInfo in in AUX_SYNC_IND */
+
+	/* AuxPtr */
+	if (ter_hdr->aux_ptr) {
+		/* ToDo Update setup of aux_ptr - check documentation */
+		if (ter_hdr_prev.aux_ptr) {
+			ter_dptr_prev -= sizeof(struct pdu_adv_aux_ptr);
+			ter_dptr -= sizeof(struct pdu_adv_aux_ptr);
+			memmove(ter_dptr, ter_dptr_prev,
+			       sizeof(struct pdu_adv_aux_ptr));
+		} else {
+			ull_adv_aux_ptr_fill(&ter_dptr, lll_sync->adv->phy_s);
+		}
+	}
+
+	/* No ADI in AUX_SYNC_IND*/
+
+	/* TODO: CTEInfo */
+	if (ter_hdr->cte_info) {
+		if (hdr_add_fields & ULL_ADV_PDU_HDR_FIELD_CTE_INFO) {
+			*--ter_dptr = *(uint8_t *)value;
+		} else {
+			*--ter_dptr = *--ter_dptr_prev;
+		}
+	}
+
+	/* No TargetA in AUX_SYNC_IND */
+	/* No AdvA in AUX_SYNC_IND */
+
+	return 0;
+}
+
 uint8_t ll_adv_sync_param_set(uint8_t handle, uint16_t interval, uint16_t flags)
 {
 	struct pdu_adv_ext_hdr *ter_hdr, ter_hdr_prev;
@@ -65,7 +256,7 @@ uint8_t ll_adv_sync_param_set(uint8_t handle, uint16_t interval, uint16_t flags)
 	struct ll_adv_sync_set *sync;
 	struct pdu_adv *ter_pdu;
 	struct ll_adv_set *adv;
-	uint8_t ter_len;
+	uint8_t err, ter_idx;
 
 	adv = ull_adv_is_created_get(handle);
 	if (!adv) {
@@ -111,55 +302,39 @@ uint8_t ll_adv_sync_param_set(uint8_t handle, uint16_t interval, uint16_t flags)
 
 		sync->is_enabled = 0U;
 		sync->is_started = 0U;
+
+		ter_pdu = lll_adv_sync_data_peek(lll_sync);
+		ter_pdu->type = PDU_ADV_TYPE_AUX_SYNC_IND;
+		ter_pdu->rfu = 0U;
+		ter_pdu->chan_sel = 0U;
+
+		ter_pdu->tx_addr = 0U;
+		ter_pdu->rx_addr = 0U;
+
+		ter_pdu->len = offsetof(struct pdu_adv_com_ext_adv,
+					ext_hdr_adv_data);
+
+		ter_com_hdr = (void *)&ter_pdu->adv_ext_ind;
+		ter_hdr = (void *)ter_com_hdr->ext_hdr_adv_data;
+		ter_dptr = ter_hdr->data;
+		ter_hdr_prev = *ter_hdr;
+		*(uint8_t *)ter_hdr = 0U;
+		ter_dptr_prev = ter_dptr;
+
+		/* Non-connectable and Non-scannable adv mode */
+		ter_com_hdr->adv_mode = 0U;
 	} else {
 		sync = (void *)HDR_LLL2EVT(lll_sync);
 	}
 
 	sync->interval = interval;
 
-	ter_pdu = lll_adv_sync_data_peek(lll_sync);
-	ter_pdu->type = PDU_ADV_TYPE_AUX_SYNC_IND;
-	ter_pdu->rfu = 0U;
-	ter_pdu->chan_sel = 0U;
-	ter_pdu->tx_addr = 0U;
-	ter_pdu->rx_addr = 0U;
-
-	ter_com_hdr = (void *)&ter_pdu->adv_ext_ind;
-	ter_hdr = (void *)ter_com_hdr->ext_hdr_adv_data;
-	ter_dptr = ter_hdr->data;
-	ter_hdr_prev = *ter_hdr;
-	*(uint8_t *)ter_hdr = 0U;
-	ter_dptr_prev = ter_dptr;
-
-	/* Non-connectable and Non-scannable adv mode */
-	ter_com_hdr->adv_mode = 0U;
-
-	/* No AdvA */
-	/* No TargetA */
-
-	/* TODO: CTEInfo */
-
-	/* No ADI */
-
-	/* TODO: AuxPtr */
-
-	/* No SyncInfo */
-
-	/* TODO: TxPower */
-	if (flags & BT_HCI_LE_ADV_PROP_TX_POWER) {
-		/* TODO: add/remove Tx Power in AUX_SYNC_IND PDU */
-		return BT_HCI_ERR_CMD_DISALLOWED;
+	err = ull_adv_sync_hdr_set_clear(adv, 0, 0, NULL, &ter_idx);
+	if (err) {
+		return err;
 	}
 
-	/* TODO: ACAD */
-
-	/* TODO: AdvData */
-
-	/* Calc tertiary PDU len */
-	ter_len = ull_adv_aux_hdr_len_calc(ter_com_hdr, &ter_dptr);
-	ull_adv_aux_hdr_len_fill(ter_com_hdr, ter_len);
-
-	ter_pdu->len = ter_len;
+	lll_adv_sync_data_enqueue(lll_sync, ter_idx);
 
 	return 0;
 }
@@ -167,14 +342,19 @@ uint8_t ll_adv_sync_param_set(uint8_t handle, uint16_t interval, uint16_t flags)
 uint8_t ll_adv_sync_ad_data_set(uint8_t handle, uint8_t op, uint8_t len,
 				uint8_t const *const data)
 {
-	struct pdu_adv_com_ext_adv *ter_com_hdr, *ter_com_hdr_prev;
-	struct pdu_adv_ext_hdr *ter_hdr, ter_hdr_prev;
-	struct pdu_adv *ter_pdu, *ter_pdu_prev;
-	uint8_t *ter_dptr, *ter_dptr_prev;
-	uint16_t ter_len, ter_len_prev;
 	struct lll_adv_sync *lll_sync;
 	struct ll_adv_set *adv;
+	uint8_t value[5];
+	uint8_t *val_ptr;
 	uint8_t ter_idx;
+	uint8_t err;
+
+	/* TODO: handle other op values */
+	if ((op != BT_HCI_LE_EXT_ADV_OP_COMPLETE_DATA) &&
+	    (op != BT_HCI_LE_EXT_ADV_OP_UNCHANGED_DATA)) {
+		/* FIXME: error code */
+		return BT_HCI_ERR_CMD_DISALLOWED;
+	}
 
 	adv =  ull_adv_is_created_get(handle);
 	if (!adv) {
@@ -186,109 +366,16 @@ uint8_t ll_adv_sync_ad_data_set(uint8_t handle, uint8_t op, uint8_t len,
 		return BT_HCI_ERR_UNKNOWN_ADV_IDENTIFIER;
 	}
 
-	/* Get reference to previous tertiary PDU data */
-	ter_pdu_prev = lll_adv_sync_data_peek(lll_sync);
-	ter_com_hdr_prev = (void *)&ter_pdu_prev->adv_ext_ind;
-	ter_hdr = (void *)ter_com_hdr_prev->ext_hdr_adv_data;
-	ter_hdr_prev = *ter_hdr;
-	ter_dptr_prev = ter_hdr->data;
-
-	/* Get reference to new tertiary PDU data buffer */
-	ter_pdu = lll_adv_sync_data_alloc(lll_sync, &ter_idx);
-	ter_pdu->type = ter_pdu_prev->type;
-	ter_pdu->rfu = 0U;
-	ter_pdu->chan_sel = 0U;
-	ter_com_hdr = (void *)&ter_pdu->adv_ext_ind;
-	ter_com_hdr->adv_mode = ter_com_hdr_prev->adv_mode;
-	ter_hdr = (void *)ter_com_hdr->ext_hdr_adv_data;
-	ter_dptr = ter_hdr->data;
-	*(uint8_t *)ter_hdr = 0U;
-
-	/* No AdvA */
-	/* No TargetA */
-
-	/* TODO: CTEInfo */
-
-	/* No ADI */
-
-	/* AuxPtr */
-	if (ter_hdr_prev.aux_ptr) {
-		ter_dptr_prev += sizeof(struct pdu_adv_aux_ptr);
-
-		ter_hdr->aux_ptr = 1;
-		ter_dptr += sizeof(struct pdu_adv_aux_ptr);
+	val_ptr = value;
+	*val_ptr++ = len;
+	sys_put_le32((uint32_t)data, val_ptr);
+	err = ull_adv_sync_hdr_set_clear(adv, ULL_ADV_PDU_HDR_FIELD_AD_DATA,
+					0, value, &ter_idx);
+	if (err) {
+		return err;
 	}
-
-	/* No SyncInfo */
-
-	/* Tx Power flag */
-	if (ter_hdr_prev.tx_pwr) {
-		ter_dptr_prev++;
-
-		ter_hdr->tx_pwr = 1;
-		ter_dptr++;
-	}
-
-	/* TODO: ACAD */
-
-	/* AdvData */
-	/* Calc previous tertiary PDU len */
-	ter_len_prev = ull_adv_aux_hdr_len_calc(ter_com_hdr_prev,
-						&ter_dptr_prev);
-
-	/* Did we parse beyond PDU length? */
-	if (ter_len_prev > ter_pdu_prev->len) {
-		/* we should not encounter invalid length */
-		return BT_HCI_ERR_UNSPECIFIED;
-	}
-
-	/* Calc current tertiary PDU len */
-	ter_len = ull_adv_aux_hdr_len_calc(ter_com_hdr, &ter_dptr);
-	ull_adv_aux_hdr_len_fill(ter_com_hdr, ter_len);
-
-	/* Add AD len to secondary PDU length */
-	ter_len += len;
-
-	/* Check AdvData overflow */
-	if (ter_len > PDU_AC_PAYLOAD_SIZE_MAX) {
-		return BT_HCI_ERR_PACKET_TOO_LONG;
-	}
-
-	/* set the secondary PDU len */
-	ter_pdu->len = ter_len;
-
-	/* Start filling tertiary PDU payload based on flags from here
-	 * ==============================================================
-	 */
-
-	/* Fill AdvData in tertiary PDU */
-	memmove(ter_dptr, data, len);
-
-	/* TODO: Fill ACAD in tertiary PDU */
-
-	/* Tx Power */
-	if (ter_hdr->tx_pwr) {
-		*--ter_dptr = *--ter_dptr_prev;
-	}
-
-	/* No SyncInfo in tertiary PDU */
-
-	/* AuxPtr */
-	if (ter_hdr_prev.aux_ptr) {
-		ter_dptr_prev -= sizeof(struct pdu_adv_aux_ptr);
-
-		ull_adv_aux_ptr_fill(&ter_dptr, lll_sync->adv->phy_s);
-	}
-
-	/* No ADI */
-
-	/* TODO: CTEInfo */
-
-	/* No TargetA*/
-	/* No AdvA */
 
 	lll_adv_sync_data_enqueue(lll_sync, ter_idx);
-
 
 	return 0;
 }
@@ -683,6 +770,44 @@ static inline void sync_info_offset_fill(struct pdu_adv_sync_info *si,
 	} else {
 		si->offs = offs;
 		si->offs_units = 0U;
+	}
+}
+
+static inline struct pdu_adv_aux_ptr *aux_ptr_get(struct pdu_adv *pdu)
+{
+	struct pdu_adv_com_ext_adv *p;
+	struct pdu_adv_ext_hdr *h;
+	uint8_t *ptr;
+
+	p = (void *)&pdu->adv_ext_ind;
+	h = (void *)p->ext_hdr_adv_data;
+	ptr = h->data;
+
+	if (h->cte_info) {
+		ptr += sizeof(struct pdu_cte_info);
+	}
+
+	if (h->aux_ptr) {
+		ptr += sizeof(struct pdu_adv_aux_ptr);
+	}
+
+	return (void *)ptr;
+}
+
+static inline void aux_ptr_offset_fill(struct pdu_adv_aux_ptr *aux_ptr,
+				       uint32_t ticks_offset,
+				       uint32_t start_us)
+{
+	uint32_t offs;
+
+	offs = HAL_TICKER_TICKS_TO_US(ticks_offset) - start_us;
+	offs = offs / OFFS_UNIT_30_US;
+	if (!!(offs >> 13)) {
+		aux_ptr->offs = offs / (OFFS_UNIT_300_US / OFFS_UNIT_30_US);
+		aux_ptr->offs_units = 1U;
+	} else {
+		aux_ptr->offs = offs;
+		aux_ptr->offs_units = 0U;
 	}
 }
 

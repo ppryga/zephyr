@@ -47,6 +47,8 @@ const uint8_t *ull_adv_pdu_update_addrs(struct ll_adv_set *adv,
 #if defined(CONFIG_BT_CTLR_ADV_EXT)
 
 #define ULL_ADV_PDU_HDR_FIELD_ADVA      BIT(0)
+#define ULL_ADV_PDU_HDR_FIELD_CTE_INFO  BIT(2)
+#define ULL_ADV_PDU_HDR_FIELD_AUX_PTR   BIT(4)
 #define ULL_ADV_PDU_HDR_FIELD_SYNC_INFO BIT(5)
 #define ULL_ADV_PDU_HDR_FIELD_AD_DATA   BIT(8)
 
@@ -90,6 +92,15 @@ uint8_t ull_adv_aux_hdr_set_clear(struct ll_adv_set *adv,
 				  void *value,
 				  struct pdu_adv_adi *adi,
 				  uint8_t *pri_idx);
+
+/* helper function to set/clear common extended header format fields
+ * for AUX_SYNC_IND PDU.
+ */
+uint8_t ull_adv_sync_hdr_set_clear(struct ll_adv_set *adv,
+				  uint16_t hdr_add_fields,
+				  uint16_t hdr_rem_fields,
+				  void *value,
+				  uint8_t *ter_idx);
 
 /* helper function to calculate common ext adv payload header length and
  * adjust the data pointer.
