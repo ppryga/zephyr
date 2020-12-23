@@ -24,8 +24,8 @@
 #include "ull_adv_types.h"
 #include "ull_adv_internal.h"
 
-#include "ull_df.h"
 #include "lll_df.h"
+#include "ull_df.h"
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_DEBUG_HCI_DRIVER)
 #define LOG_MODULE_NAME bt_ctlr_ull_df
@@ -127,17 +127,11 @@ uint8_t ll_df_set_cl_cte_tx_params(uint8_t adv_handle, uint8_t cte_len,
 				   uint8_t num_ant_ids, uint8_t *ant_ids)
 {
 	struct ll_adv_set *adv;
-	struct lll_adv_sync *sync;
 	struct lll_df_adv_cfg *cfg;
 
 	/* Get the advertising set instance */
 	adv = ull_adv_is_created_get(adv_handle);
 	if (!adv) {
-		return BT_HCI_ERR_UNKNOWN_ADV_IDENTIFIER;
-	}
-
-	sync = adv->lll.sync;
-	if (!sync) {
 		return BT_HCI_ERR_UNKNOWN_ADV_IDENTIFIER;
 	}
 
@@ -171,11 +165,11 @@ uint8_t ll_df_set_cl_cte_tx_params(uint8_t adv_handle, uint8_t cte_len,
 		return BT_HCI_ERR_UNSUPP_FEATURE_PARAM_VAL;
 	}
 
-	if (!sync->df_cfg) {
-		sync->df_cfg = ull_df_adv_cfg_acquire();
+	if (!adv->lll.df_cfg) {
+		adv->lll.df_cfg = ull_df_adv_cfg_acquire();
 	}
 
-	cfg = sync->df_cfg;
+	cfg = adv->lll.df_cfg;
 
 	if (cfg->is_enabled) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
@@ -211,7 +205,6 @@ uint8_t ll_df_set_cl_cte_tx_params(uint8_t adv_handle, uint8_t cte_len,
 uint8_t ll_df_set_cl_cte_tx_enable(uint8_t adv_handle, uint8_t cte_enable)
 {
 	struct ll_adv_set *adv;
-	struct lll_adv_sync *lll_sync;
 
 	/* Get the advertising set instance */
 	adv = ull_adv_is_created_get(adv_handle);
@@ -221,41 +214,42 @@ uint8_t ll_df_set_cl_cte_tx_enable(uint8_t adv_handle, uint8_t cte_enable)
 	/* If there is no sync in advertising set, then the HCI_LE_Set_-
 	 * Periodic_Advertising_Parameters command was not issued before.
 	 */
-	lll_sync = adv->lll.sync;
-	if (!lll_sync) {
+	if (!adv->lll.sync) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 
 	/* If df_cfg is NULL, then the HCI_LE_Set_Connectionless_CTE_Transmit_-
 	 * Parameters command was not issued before.
 	 */
-	if (!lll_sync->df_cfg) {
+	if (!adv->lll.df_cfg) {
 		return BT_HCI_ERR_CMD_DISALLOWED;
 	}
 
 	/* ToDo - check PHY used in Adv. Set. */
 
 	if (!cte_enable) {
-		if (!lll_sync->df_cfg->is_enabled) {
+		if (!adv->lll.df_cfg->is_enabled) {
 			return BT_HCI_ERR_CMD_DISALLOWED;
 		}
 
-		if (lll_sync->df_cfg->is_started) {
-			int err = cte_remove(lll_sync->df_cfg);
+		if (adv->lll.df_cfg->is_started) {
+			int err = cte_remove(adv->lll.df_cfg);
 
 			if (err) {
 				return err;
 			}
 		}
 
-		lll_sync->df_cfg->is_enabled = 0U;
+		/* ToDo remove cte_info from periodic adv header */
+
+		adv->lll.df_cfg->is_enabled = 0U;
 		return 0;
 	} else {
-		if (lll_sync->df_cfg->is_enabled) {
+		if (adv->lll.df_cfg->is_enabled) {
 			return BT_HCI_ERR_CMD_DISALLOWED;
 		}
 
-		lll_sync->df_cfg->is_enabled = 1U;
+		adv->lll.df_cfg->is_enabled = 1U;
 	}
 
 	return BT_HCI_ERR_SUCCESS;
