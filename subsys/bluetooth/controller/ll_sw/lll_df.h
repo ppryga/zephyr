@@ -9,6 +9,7 @@
  */
 struct lll_df_adv_cfg {
 	uint8_t is_enabled:1;
+	uint8_t unused:1;       /* makes bits alignment more optimal */
 	uint8_t cte_length:6;   /* Length of CTE in 8us units */
 	uint8_t cte_type:2;
 	uint8_t cte_count:6;
