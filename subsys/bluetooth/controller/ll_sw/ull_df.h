@@ -26,5 +26,7 @@ int ull_df_reset(void);
 
 static inline void ull_df_start(struct lll_adv_sync *lll_sync)
 {
-	lll_sync->adv->df_cfg->is_started = 1U;
+	if (lll_sync->adv->df_cfg->is_enabled) {
+		lll_sync->adv->df_cfg->is_started = 1U;
+	}
 }

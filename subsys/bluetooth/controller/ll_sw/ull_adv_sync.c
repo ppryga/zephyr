@@ -477,9 +477,6 @@ uint8_t ll_adv_sync_enable(uint8_t handle, uint8_t enable)
 		}
 
 		sync->is_started = 1U;
-#if IS_ENABLED(CONFIG_BT_CTLR_DF)
-		ull_df_start(lll_sync);
-#endif /* CONFIG_BT_CTLR_DF */
 		lll_adv_data_enqueue(&adv->lll, pri_idx);
 
 		if (aux) {
@@ -830,6 +827,10 @@ static void ticker_cb(uint32_t ticks_at_expire, uint32_t remainder,
 	DEBUG_RADIO_PREPARE_A(1);
 
 	lll = &sync->lll;
+
+#if IS_ENABLED(CONFIG_BT_CTLR_DF)
+	ull_df_start(lll);
+#endif /* CONFIG_BT_CTLR_DF */
 
 	/* Increment prepare reference count */
 	ref = ull_ref_inc(&sync->ull);

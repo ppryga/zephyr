@@ -15,6 +15,7 @@
 #include "util/util.h"
 #include "util/memq.h"
 #include "util/mem.h"
+#include "util/mayfly.h"
 
 #include "pdu.h"
 #include "ll.h"
@@ -62,7 +63,7 @@ static struct lll_df_adv_cfg *ull_df_adv_cfg_acquire(void);
  *
  * @return      Zero in case of success, other value in case of failure.
  */
-static inline int cte_remove(struct lll_df_adv_cfg *df);
+static inline int  cte_remove(struct ll_adv_set *adv);
 
 /* @brief Function performs ULL Direction Finding initialization
  *
@@ -235,7 +236,7 @@ uint8_t ll_df_set_cl_cte_tx_enable(uint8_t adv_handle, uint8_t cte_enable)
 		}
 
 		if (adv->lll.df_cfg->is_started) {
-			int err = cte_remove(adv->lll.df_cfg);
+			int err = cte_remove(adv);
 
 			if (err) {
 				return err;
@@ -352,7 +353,27 @@ static struct lll_df_adv_cfg *ull_df_adv_cfg_acquire(void)
 	return df_adv_cfg;
 }
 
-static inline int cte_remove(struct lll_df_adv_cfg *df)
+void cte_stop(void *param)
+{
+	struct ll_adv_set *adv = param;
+	uint8_t ter_idx;
+
+	if (adv->lll.df_cfg->is_started) {
+		/* TODO: if CTE is currently transmitted we must stop it,
+		 * but can't stop periodic advertising.
+		 * What if stop of TX CTE fails?
+		 */
+		adv->lll.df_cfg->is_started = 0U;
+
+		ull_adv_sync_hdr_set_clear(adv, 0,
+					   ULL_ADV_PDU_HDR_FIELD_CTE_INFO,
+					   NULL, &ter_idx);
+
+		lll_adv_sync_data_enqueue(adv->lll.sync, ter_idx);
+	}
+}
+
+static inline int cte_remove(struct ll_adv_set *adv)
 {
 	/* ToDo missing complete implementation */
 
@@ -363,13 +384,14 @@ static inline int cte_remove(struct lll_df_adv_cfg *df)
 	 * to value required to send adv. sync. train data.
 	 */
 
-	if (df->is_started) {
-		/* TODO: if CTE is currently transmitted we must stop it,
-		 * but can't stop periodic advertising.
-		 * What if stop of TX CTE fails?
-		 */
-		df->is_started = 0U;
-	}
+	static memq_link_t link;
+	static struct mayfly mfy = {0, 0, &link, NULL, cte_stop};
+	uint32_t ret;
+
+	mfy.param = adv;
+	ret = mayfly_enqueue(TICKER_USER_ID_ULL_HIGH, TICKER_USER_ID_ULL_LOW, 1,
+			     &mfy);
+	LL_ASSERT(!ret);
 
 	return 0U;
 }

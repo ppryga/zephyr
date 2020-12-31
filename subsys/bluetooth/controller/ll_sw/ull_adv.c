@@ -1257,9 +1257,6 @@ uint8_t ll_adv_enable(uint8_t enable)
 #if defined(CONFIG_BT_CTLR_ADV_PERIODIC)
 		if (sync_is_started) {
 			sync->is_started = sync_is_started;
-#if IS_ENABLED(CONFIG_BT_CTLR_DF)
-			ull_df_start(&sync->lll);
-#endif /* CONFIG_BT_CTLR_DF */
 		}
 #endif /* CONFIG_BT_CTLR_ADV_PERIODIC */
 	}
