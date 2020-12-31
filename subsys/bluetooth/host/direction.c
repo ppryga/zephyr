@@ -355,7 +355,7 @@ static int bt_le_df_set_adv_cte_tx_enabled(struct bt_le_ext_adv *adv,
 		return -EINVAL;
 	}
 
-	if (atomic_test_bit(adv->flags, BT_PER_ADV_CTE_ENABLED)) {
+	if (enable == atomic_test_bit(adv->flags, BT_PER_ADV_CTE_ENABLED)) {
 		return -EALREADY;
 	}
 
