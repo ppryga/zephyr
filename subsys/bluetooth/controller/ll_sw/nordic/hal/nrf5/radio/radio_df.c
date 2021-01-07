@@ -27,15 +27,15 @@ struct df_ant_cfg {
 };
 
 #define DFE_ANT DT_NODELABEL(dfe_ant)
-#define DFE_GPIO_PIN(idx)                                               \
-	COND_CODE_1(DT_NODE_HAS_PROP(DFE_ANT, dfegpio##idx##_pin),      \
-		    (DT_PROP(DFE_ANT, dfegpio##idx##_pin)),             \
+#define DFE_GPIO_PIN(idx)                                                   \
+	COND_CODE_1(DT_NODE_HAS_PROP(DFE_ANT, dfegpio##idx##_gpios),        \
+		    (NRF_DT_GPIOS_TO_PSEL(DFE_ANT, dfegpio##idx##_gpios)),  \
 		    (DF_GPIO_PIN_NOT_SET))
 
 #define DFE_GPIO_PIN_DISCONNECT (RADIO_PSEL_DFEGPIO_CONNECT_Disconnected << \
 				 RADIO_PSEL_DFEGPIO_CONNECT_Pos)
 
-#define COUNT_GPIO(idx, _) + DT_NODE_HAS_PROP(DFE_ANT, dfegpio##idx##_pin)
+#define COUNT_GPIO(idx, _) + DT_NODE_HAS_PROP(DFE_ANT, dfegpio##idx##_gpios)
 #define DFE_GPIO_NUM        (UTIL_LISTIFY(DF_PSEL_GPIO_NUM, COUNT_GPIO, _))
 
 /* DFE_GPIO_NUM_IS_ZERO is required to correctly compile COND_CODE_1 in
@@ -48,7 +48,7 @@ struct df_ant_cfg {
 #define DFE_GPIO_NUM_IS_ZERO EMPTY
 #endif
 
-#define DFE_GPIO_ALLOWED_ANT_NUM COND_CODE_1(DFE_GPIO_NUM_IS_ZERO,      \
+#define DFE_GPIO_ALLOWED_ANT_NUM COND_CODE_1(DFE_GPIO_NUM_IS_ZERO,       \
 					     (BIT(DFE_GPIO_NUM)), (0))
 
 #if IS_ENABLED(CONFIG_BT_CTLR_DF_ANT_SWITCH_TX) || \
@@ -57,10 +57,23 @@ struct df_ant_cfg {
 /* Check if there is enough pins configured to represent each pattern
  * for given antennas number.
  */
-BUILD_ASSERT((DFE_GPIO_ALLOWED_ANT_NUM >= DT_PROP(DFE_ANT, ant_num)),  \
+BUILD_ASSERT((DFE_GPIO_ALLOWED_ANT_NUM >= DT_PROP(DFE_ANT, ant_num)),    \
 	     "Insufficient number of GPIO pins configured.");
 BUILD_ASSERT((DT_PROP(DFE_ANT, ant_num) >= DF_ANT_NUM_MIN),              \
 	     "Insufficient number of antennas provided.");
+
+/* Check if dfegpio#-gios property has flag cell set to zero */
+#define DFE_GPIO_PIN_FLAGS(idx) (DT_GPIO_FLAGS(DFE_ANT, dfegpio##idx##_gpios))
+#define DFE_GPIO_PIN_IS_FLAG_ZERO(idx)                                       \
+	COND_CODE_1(DT_NODE_HAS_PROP(DFE_ANT, dfegpio##idx##_gpios),         \
+		    (BUILD_ASSERT((DFE_GPIO_PIN_FLAGS(idx) == 0),            \
+				  "Flags value of GPIO pin property must be  \
+				  zero.")),                                  \
+		    (EMPTY))
+
+#define DFE_GPIO_PIN_LIST(idx, _) idx,
+FOR_EACH(DFE_GPIO_PIN_IS_FLAG_ZERO, (;),
+	 UTIL_LISTIFY(DF_PSEL_GPIO_NUM, DFE_GPIO_PIN_LIST))
 
 #if DT_NODE_HAS_STATUS(DFE_ANT, okay)
 const static struct df_ant_cfg ant_cfg = {
