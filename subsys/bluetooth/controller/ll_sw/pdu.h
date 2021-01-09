@@ -414,6 +414,17 @@ struct pdu_adv {
 	} __packed;
 } __packed;
 
+#if defined(CONFIG_BT_CTLR_ADV_EXT) && \
+	defined(CONFIG_BT_CTLR_ADV_EXT_PDU_EXTRA_DATA)
+/* @brief Macro to get access to extra_data stored in common extended
+ * advertising structure.
+ *
+ * @param[in] pdu    Pointer to pdu_adv structure.
+ */
+#define PDU_ADV_EXT_EXTRA_DATA_GET(pdu) \
+	(((struct pdu_adv *)pdu)->adv_ext_ind.extra_data)
+#endif /* CONFIG_BT_CTLR_ADV_EXT && CONFIG_BT_CTLR_ADV_EXT_PDU_EXTRA_DATA */
+
 enum pdu_data_llid {
 	PDU_DATA_LLID_RESV = 0x00,
 	PDU_DATA_LLID_DATA_CONTINUE = 0x01,
