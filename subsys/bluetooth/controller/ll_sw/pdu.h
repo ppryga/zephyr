@@ -37,6 +37,12 @@
 /* Advertisement channel maximum extended payload size */
 #define PDU_AC_EXT_PAYLOAD_SIZE_MAX 255
 
+#if IS_ENABLED(CONFIG_BT_CTLR_ADV_EXT_PDU_EXTRA_DATA)
+#define PDU_AC_EXT_EXTRA_DATA_SIZE 4
+#else
+#define PDU_AC_EXT_EXTRA_DATA_SIZE 0
+#endif /* CONFIG_BT_CTLR_ADV_EXT_PDU_EXTRA_DATA */
+
 /* Advertisement channel maximum payload size */
 #if defined(CONFIG_BT_CTLR_ADV_EXT)
 #define PDU_AC_EXT_HEADER_SIZE_MAX  63
@@ -50,7 +56,8 @@
 #define PDU_AC_PAYLOAD_SIZE_MAX     MAX(MIN((PDU_AC_EXT_PAYLOAD_OVERHEAD + \
 					     CONFIG_BT_CTLR_ADV_DATA_LEN_MAX), \
 					    PDU_AC_EXT_PAYLOAD_SIZE_MAX), \
-					PDU_AC_LEG_PAYLOAD_SIZE_MAX)
+					PDU_AC_LEG_PAYLOAD_SIZE_MAX) + \
+					PDU_AC_EXT_EXTRA_DATA_SIZE
 #else
 #define PDU_AC_PAYLOAD_SIZE_MAX     PDU_AC_LEG_PAYLOAD_SIZE_MAX
 #endif
@@ -259,6 +266,15 @@ struct pdu_adv_com_ext_adv {
 		struct pdu_adv_ext_hdr ext_hdr;
 		uint8_t ext_hdr_adv_data[254];
 	};
+#if IS_ENABLED(CONFIG_BT_CTLR_ADV_EXT_PDU_EXTRA_DATA)
+	/* Pointer to memory where additional LLL configuration may stored.
+	 * This is a storage for LLL configuration that may be changed
+	 * while LLL advertising role is started. Also the configuration
+	 * data must be in sync with extended advertising PDU e.g. CTE TX
+	 * configuration and CTEInfo field.
+	 */
+	void    *extra_data;
+#endif /* CONFIG_BT_CTLR_ADV_EXT_PDU_EXTRA_DATA */
 } __packed;
 
 enum pdu_adv_mode {
