@@ -589,6 +589,16 @@ void radio_switch_complete_and_disable(void)
 #endif /* !CONFIG_BT_CTLR_TIFS_HW */
 }
 
+void radio_switch_complete_and_phy_end_disable(void)
+{
+	NRF_RADIO->SHORTS =
+	    (RADIO_SHORTS_READY_START_Msk | RADIO_SHORTS_PHYEND_DISABLE_Msk);
+
+#if !defined(CONFIG_BT_CTLR_TIFS_HW)
+	hal_radio_sw_switch_disable();
+#endif /* !CONFIG_BT_CTLR_TIFS_HW */
+}
+
 void radio_rssi_measure(void)
 {
 	NRF_RADIO->SHORTS |=

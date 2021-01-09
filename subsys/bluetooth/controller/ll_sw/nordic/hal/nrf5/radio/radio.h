@@ -49,6 +49,8 @@ void radio_switch_complete_and_rx(uint8_t phy_rx);
 void radio_switch_complete_and_tx(uint8_t phy_rx, uint8_t flags_rx, uint8_t phy_tx,
 				  uint8_t flags_tx);
 void radio_switch_complete_and_disable(void);
+/* Completes switch and enables shortcut between PHYEND and DISABLE events */
+void radio_switch_complete_and_phy_end_disable(void);
 
 void radio_rssi_measure(void);
 uint32_t radio_rssi_get(void);
