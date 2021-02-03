@@ -1,0 +1,7 @@
+sample:
+  name: Direction Finding Connectionless Beacon
+tests:
+  sample.bluetooth.df_beacon:
+    harness: bluetooth
+    platform_allow: nrf52833dk_nrf52833
+    tags: bluetooth
