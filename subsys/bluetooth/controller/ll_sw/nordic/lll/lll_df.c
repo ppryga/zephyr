@@ -82,17 +82,7 @@ void lll_df_conf_cte_tx_enable(uint8_t type, uint8_t length,
 
 		radio_df_ant_switching_pin_sel_cfg();
 		radio_df_ant_switch_pattern_clear();
-		/* DFE extension in radio uses SWITCHPATTER[0] for guard period
-		 * SWITCHPATTER[1] for reference period. Bluetooth specification
-		 * does not include separate antenna patter for guard period.
-		 * To overcome that limitation ant_idx[0] is used twice:
-		 * for guard and reference period. On the other hand it limist
-		 * number of supported antenna switch patterns by one.
-		 */
-		radio_df_ant_switch_pattern_set(ant_ids[0]);
-		for (uint8_t idx = 0; idx < ant_num; ++idx) {
-			radio_df_ant_switch_pattern_set(ant_ids[idx]);
-		}
+		radio_df_ant_switch_pattern_set(ant_ids, ant_num);
 	}
 
 	radio_df_cte_length_set(length);

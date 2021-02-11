@@ -16,6 +16,8 @@
 
 /* @brief Minimum antennas number required if antenna switching is enabled */
 #define DF_ANT_NUM_MIN 2
+/* @brief Value that used to check if PDU antenna patter is not set */
+#define DF_PDU_ANT_NOT_SET 0xFF
 /* @brief Value to set antenna GPIO pin as not connected */
 #define DF_GPIO_PIN_NOT_SET 0xFF
 /* @brief Number of PSEL_DFEGPIO registers in Radio peripheral */
@@ -95,6 +97,10 @@ BUILD_ASSERT((DT_PROP(RADIO, dfe_ant_num) <= DFE_GPIO_ALLOWED_ANT_NUM), "Insuffi
 	     "number of GPIO pins configured.");
 BUILD_ASSERT((DT_PROP(RADIO, dfe_ant_num) >= DF_ANT_NUM_MIN), "Insufficient "
 	     "number of antennas provided.");
+#if IS_ENABLED(CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS)
+BUILD_ASSERT((DT_PROP(RADIO, dfe_pdu_ant) != DF_PDU_ANT_NOT_SET), "Missing "
+	     "antenna pattern used to select antenna for PDU Tx.");
+#endif /* CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS */
 
 /* Check if dfegpio#-gios property has flag cell set to zero */
 #define DFE_GPIO_PIN_FLAGS(idx) (DT_GPIO_FLAGS(RADIO, dfegpio##idx##_gpios))
@@ -188,6 +194,12 @@ int radio_df_ant_switching_gpios_cfg(void)
 			if (err) {
 				return err;
 			}
+
+			err = gpio_pin_set(dev, pin, (BIT(idx) &
+					   DT_PROP(RADIO, dfe_pdu_ant)));
+			if (err) {
+				return err;
+			}
 		}
 	}
 
@@ -266,9 +278,20 @@ void radio_df_ant_switch_spacing_set_4us(void)
 	radio_df_ant_switch_spacing_set(RADIO_DFECTRL1_TSWITCHSPACING_4us);
 }
 
-void radio_df_ant_switch_pattern_set(uint8_t pattern)
+void radio_df_ant_switch_pattern_set(uint8_t *patterns, uint8_t len)
 {
-	NRF_RADIO->SWITCHPATTERN = pattern;
+	/* DFE extension in radio uses:
+	 * - SWITCHPATTER[0] for idle period (PDU Tx/Rx),
+	 * - SWITCHPATTER[1] for guard and reference period,
+	 * - SWITCHPATTER[2] and following for switch-sampling slots.
+	 * Due to that in SWITCHPATTER[0] there is stored a pattern provided by
+	 * DTS property dfe_pdu_ant. This limits number of supported antenna
+	 * switch patterns by one.
+	 */
+	NRF_RADIO->SWITCHPATTERN = DT_PROP(RADIO, dfe_pdu_ant);
+	for (uint8_t idx = 0; idx < len; ++idx) {
+		NRF_RADIO->SWITCHPATTERN = patterns[idx];
+	}
 }
 
 void radio_df_reset(void)
