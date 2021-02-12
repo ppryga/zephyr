@@ -23,6 +23,13 @@ static int init_reset(void);
  */
 int lll_df_init(void)
 {
+	int err;
+
+	err = radio_df_ant_switching_gpios_cfg();
+	if (err) {
+		return err;
+	}
+
 	return init_reset();
 }
 

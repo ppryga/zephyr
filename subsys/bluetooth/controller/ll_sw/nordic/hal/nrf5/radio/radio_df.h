@@ -8,6 +8,10 @@
  * used to drive antenna switching during CTE Tx/RX.
  */
 void radio_df_ant_switching_pin_sel_cfg(void);
+/* Configures GPIO pins in GPIO peripheral. The pins will be used for antenna
+ * switching during CTE Rx/Tx.
+ */
+int radio_df_ant_switching_gpios_cfg(void);
 /* Provides number of available antennas for Direction Finding. */
 uint8_t radio_df_ant_num_get(void);
 

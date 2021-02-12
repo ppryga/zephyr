@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <errno.h>
 #include <devicetree.h>
+#include <drivers/gpio.h>
 #include <sys/util_macro.h>
 #include <hal/nrf_radio.h>
 
@@ -19,19 +20,51 @@
 #define DF_GPIO_PIN_NOT_SET 0xFF
 /* @brief Number of PSEL_DFEGPIO registers in Radio peripheral */
 #define DF_PSEL_GPIO_NUM 8
+/* @brief Maximum index number related with count of PSEL_DFEGPIO registers in
+ *        Radio peripheral. It is used in macros only e.g. UTIL_LISTIFY that
+ *        evaluate indices in an inclusive way.
+ */
+#define DF_PSEL_GPIO_NUM_MAX_IDX 7
+
+#if IS_ENABLED(CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS)
+struct dfe_gpio_psel {
+	/* pin_sel is combination of port and pin derived from dfegpio#_gpios
+	 * device tree phandle-array
+	 */
+	uint8_t pin_sel;
+	/* pin is regular GPIO pin value without port number embedded */
+	uint8_t pin;
+	/* pointer label of GPIO to bind appropriate device */
+	const char *gpio_label;
+};
+#endif /* CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS */
 
 /* @brief Direction Finding antenna matrix configuration */
 struct df_ant_cfg {
 	uint8_t ant_num;
 	/* Selection of GPIOs to be used to switch antennas by Radio */
+#if IS_ENABLED(CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS)
+	struct dfe_gpio_psel dfe_gpio[DF_PSEL_GPIO_NUM];
+#else
 	uint8_t dfe_gpio[DF_PSEL_GPIO_NUM];
+#endif /* CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS */
 };
 
 #define RADIO DT_NODELABEL(radio)
 #define DFE_GPIO_PIN(idx)                                                 \
 	COND_CODE_1(DT_NODE_HAS_PROP(RADIO, dfegpio##idx##_gpios),        \
+		   (DT_GPIO_PIN(RADIO, dfegpio##idx##_gpios)),   \
+		   (DF_GPIO_PIN_NOT_SET))
+
+#define DFE_GPIO_PSEL(idx)                                                \
+	COND_CODE_1(DT_NODE_HAS_PROP(RADIO, dfegpio##idx##_gpios),        \
 		   (NRF_DT_GPIOS_TO_PSEL(RADIO, dfegpio##idx##_gpios)),   \
 		   (DF_GPIO_PIN_NOT_SET))
+
+#define DFE_GPIO_LABEL(idx)                                               \
+	COND_CODE_1(DT_NODE_HAS_PROP(RADIO, dfegpio##idx##_gpios),        \
+		   (DT_GPIO_LABEL(RADIO, dfegpio##idx##_gpios)),          \
+		   (NULL))
 
 #define DFE_GPIO_PIN_DISCONNECT (RADIO_PSEL_DFEGPIO_CONNECT_Disconnected << \
 				 RADIO_PSEL_DFEGPIO_CONNECT_Pos)
@@ -74,20 +107,22 @@ BUILD_ASSERT((DT_PROP(RADIO, dfe_ant_num) >= DF_ANT_NUM_MIN), "Insufficient "
 
 #define DFE_GPIO_PIN_LIST(idx, _) idx,
 FOR_EACH(DFE_GPIO_PIN_IS_FLAG_ZERO, (;),
-	UTIL_LISTIFY(DF_PSEL_GPIO_NUM, DFE_GPIO_PIN_LIST))
+	UTIL_LISTIFY(DF_PSEL_GPIO_NUM_MAX_IDX, DFE_GPIO_PIN_LIST))
+
+#if IS_ENABLED(CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS)
+#define DFE_GPIO(idx) { DFE_GPIO_PSEL(idx), DFE_GPIO_PIN(idx), DFE_GPIO_LABEL(idx) }
+#define DFE_GPIO_PSEL_GET(dfe_gpio, idx) dfe_gpio[idx].pin_sel
+#else
+#define DFE_GPIO(idx) DFE_GPIO_PIN(idx)
+#define DFE_GPIO_PSEL_GET(dfe_gpio, idx) dfe_gpio[idx]
+#endif /* CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS */
 
 #if DT_NODE_HAS_STATUS(RADIO, okay)
 const static struct df_ant_cfg ant_cfg = {
 	.ant_num = DT_PROP(RADIO, dfe_ant_num),
 	.dfe_gpio = {
-		DFE_GPIO_PIN(0),
-		DFE_GPIO_PIN(1),
-		DFE_GPIO_PIN(2),
-		DFE_GPIO_PIN(3),
-		DFE_GPIO_PIN(4),
-		DFE_GPIO_PIN(5),
-		DFE_GPIO_PIN(6),
-		DFE_GPIO_PIN(7),
+		FOR_EACH(DFE_GPIO, (,),
+			 UTIL_LISTIFY(DF_PSEL_GPIO_NUM_MAX_IDX, DFE_GPIO_PIN_LIST))
 	}
 };
 #else
@@ -106,7 +141,7 @@ void radio_df_ant_switching_pin_sel_cfg(void)
 	uint8_t pin_sel;
 
 	for (uint8_t idx = 0; idx < DF_PSEL_GPIO_NUM; ++idx) {
-		pin_sel = ant_cfg.dfe_gpio[idx];
+		pin_sel = DFE_GPIO_PSEL_GET(ant_cfg.dfe_gpio, idx);
 
 		if (pin_sel != DF_GPIO_PIN_NOT_SET) {
 			nrf_radio_dfe_pattern_pin_set(NRF_RADIO,
@@ -119,6 +154,46 @@ void radio_df_ant_switching_pin_sel_cfg(void)
 		}
 	}
 }
+
+#if IS_ENABLED(CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS)
+/* @brief Function configures GPIO pins that will be used by Direction Finding
+ *        Extension for antenna switching.
+ *
+ * Function configures antenna selection GPIO pins in GPIO peripheral.
+ * Also sets pin outputs to match state in SWITCHPATTERN[0] that is used
+ * to enable antenna for PDU Rx/Tx. That has to prevent glitches when
+ * DFE is powered off after end of transmission.
+ *
+ * @return	Zero in case of success, other value in case of failure.
+ */
+int radio_df_ant_switching_gpios_cfg(void)
+{
+	uint8_t pin_sel;
+
+	for (uint8_t idx = 0; idx < DF_PSEL_GPIO_NUM; ++idx) {
+		pin_sel = DFE_GPIO_PSEL_GET(ant_cfg.dfe_gpio, idx);
+
+		if (ant_cfg.dfe_gpio[idx].gpio_label) {
+			const struct device *dev;
+			uint8_t pin;
+			int err;
+
+			pin = ant_cfg.dfe_gpio[idx].pin;
+			dev = device_get_binding(ant_cfg.dfe_gpio[idx].gpio_label);
+			if (!dev) {
+				return -ENODEV;
+			}
+
+			err = gpio_pin_configure(dev, pin, GPIO_OUTPUT_LOW);
+			if (err) {
+				return err;
+			}
+		}
+	}
+
+	return 0;
+}
+#endif /* CONFIG_BT_CTLR_DF_INIT_ANT_SEL_GPIOS */
 #endif /* CONFIG_BT_CTLR_DF_ANT_SWITCH_TX || CONFIG_BT_CTLR_DF_ANT_SWITCH_RX */
 
 /* @brief Function provides number of available antennas for Direction Finding.
