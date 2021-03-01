@@ -110,14 +110,26 @@ uint8_t ull_adv_aux_hdr_set_clear(struct ll_adv_set *adv,
 /* helper function to release periodic advertising instance */
 void ull_adv_sync_release(struct ll_adv_sync_set *sync);
 
+/* helper function to allocate new PDU data for AUX_SYNC_IND and return
+ * previous and new PDU for further processing.
+ * NOTE: this will also update extra_data if needed
+ */
+uint8_t ull_adv_sync_pdu_alloc(struct ll_adv_set *adv,
+			       uint16_t hdr_add_fields,
+			       uint16_t hdr_rem_fields,
+			       struct adv_pdu_field_data *data,
+			       struct pdu_adv **ter_pdu_prev,
+			       struct pdu_adv **ter_pdu_new, uint8_t *ter_idx);
+
 /* helper function to set/clear common extended header format fields
  * for AUX_SYNC_IND PDU.
  */
-uint8_t ull_adv_sync_pdu_set_clear(struct ll_adv_set *adv,
+uint8_t ull_adv_sync_pdu_set_clear(struct lll_adv_sync *lll_sync,
+				   struct pdu_adv *ter_pdu_prev,
+				   struct pdu_adv *ter_pdu,
 				   uint16_t hdr_add_fields,
 				   uint16_t hdr_rem_fields,
-				   struct adv_pdu_field_data *data,
-				   uint8_t *ter_idx);
+				   struct adv_pdu_field_data *data);
 
 /* helper function to calculate common ext adv payload header length and
  * adjust the data pointer.
