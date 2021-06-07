@@ -28,7 +28,7 @@ config BT_CTLR_DF_ANT_SWITCH_1US_SUPPORT
 
 menuconfig BT_CTLR_DF
 	bool "LE Direction Finding [Experimental]"
-	depends on BT_CTLR_DF_SUPPORT
+	depends on BT_CTLR_DF_SUPPORT && !BT_CTLR_TIFS_HW
 	help
 	  Enable support for Bluetooth 5.1 Direction Finding
 
