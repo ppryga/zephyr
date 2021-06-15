@@ -500,9 +500,8 @@ void *radio_pkt_decrypt_get(void)
 
 static uint8_t sw_tifs_toggle;
 
-static inline void sw_switch(uint8_t dir_curr, uint8_t dir_next,
-			     uint8_t phy_curr, uint8_t flags_curr,
-			     uint8_t phy_next, uint8_t flags_next)
+void sw_switch(uint8_t dir_curr, uint8_t dir_next, uint8_t phy_curr, uint8_t flags_curr,
+	       uint8_t phy_next, uint8_t flags_next)
 {
 	uint8_t ppi = HAL_SW_SWITCH_RADIO_ENABLE_PPI(sw_tifs_toggle);
 	uint8_t cc = SW_SWITCH_TIMER_EVTS_COMP(sw_tifs_toggle);
@@ -511,8 +510,8 @@ static inline void sw_switch(uint8_t dir_curr, uint8_t dir_next,
 	hal_radio_sw_switch_setup(cc, ppi, sw_tifs_toggle);
 
 	/* NOTE: As constants are passed to dir_curr and dir_next, the
-	 *       compiler should optimize out the redundant code path as
-	 *       this is an inline function.
+	 *       compiler should optimize out the redundant code path
+	 *       during the optimization.
 	 */
 	if (dir_next) {
 		/* TX */
