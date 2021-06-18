@@ -400,6 +400,65 @@ uint8_t ll_adv_sync_param_set(uint8_t handle, uint16_t interval, uint16_t flags)
 		return err;
 	}
 
+#if defined(CONFIG_BT_CTLR_ADV_PDU_LINK)
+	struct pdu_adv *ter_pdu = (void *)lll_sync->data.pdu[ter_idx];
+	do {
+		const char *tmp = "test1 test1 test1";
+		struct pdu_adv *test_pdu;
+
+		/* Allocate new PDU */
+		test_pdu = lll_adv_pdu_alloc_pdu_adv();
+		/* Initialize new empty PDU */
+		ull_adv_sync_pdu_init(test_pdu, ULL_ADV_PDU_HDR_FIELD_AUX_PTR);
+		/* Add some AD for testing */
+		adv_sync_pdu_ad_data_set(test_pdu, tmp, strlen(tmp));
+		/* Link to 1st PDU */
+		lll_adv_pdu_linked_append(test_pdu, ter_pdu);
+		ter_pdu = test_pdu;
+	} while (0);
+	do {
+		const char *tmp = "test2 test2 test2";
+		struct pdu_adv *test_pdu;
+
+		/* Allocate new PDU */
+		test_pdu = lll_adv_pdu_alloc_pdu_adv();
+		/* Initialize new empty PDU */
+		ull_adv_sync_pdu_init(test_pdu, ULL_ADV_PDU_HDR_FIELD_AUX_PTR);
+		/* Add some AD for testing */
+		adv_sync_pdu_ad_data_set(test_pdu, tmp, strlen(tmp));
+		/* Link to 1st PDU */
+		lll_adv_pdu_linked_append(test_pdu, ter_pdu);
+		ter_pdu = test_pdu;
+	} while (0);
+	do {
+		const char *tmp = "test3 test3 test3";
+		struct pdu_adv *test_pdu;
+
+		/* Allocate new PDU */
+		test_pdu = lll_adv_pdu_alloc_pdu_adv();
+		/* Initialize new empty PDU */
+		ull_adv_sync_pdu_init(test_pdu, ULL_ADV_PDU_HDR_FIELD_AUX_PTR);
+		/* Add some AD for testing */
+		adv_sync_pdu_ad_data_set(test_pdu, tmp, strlen(tmp));
+		/* Link to 1st PDU */
+		lll_adv_pdu_linked_append(test_pdu, ter_pdu);
+		ter_pdu = test_pdu;
+	} while (0);
+	do {
+		const char *tmp = "test_last test_last test_last";
+		struct pdu_adv *test_pdu;
+
+		/* Allocate new PDU */
+		test_pdu = lll_adv_pdu_alloc_pdu_adv();
+		/* Initialize new empty PDU */
+		ull_adv_sync_pdu_init(test_pdu, 0);
+		/* Add some AD for testing */
+		adv_sync_pdu_ad_data_set(test_pdu, tmp, strlen(tmp));
+		/* Link to 1st PDU */
+		lll_adv_pdu_linked_append(test_pdu, ter_pdu);
+	} while (0);
+#endif /* CONFIG_BT_CTLR_ADV_PDU_LINK */
+
 	lll_adv_sync_data_enqueue(lll_sync, ter_idx);
 
 	return 0;
