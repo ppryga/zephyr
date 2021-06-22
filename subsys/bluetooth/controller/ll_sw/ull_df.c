@@ -664,6 +664,8 @@ static struct lll_df_adv_cfg *df_adv_cfg_acquire(void)
 	return df_adv_cfg;
 }
 
+#pragma GCC push_options
+#pragma GCC optimize("-O0")
 static uint8_t set_cte_info_in_per_adv_chain(struct ll_adv_set *adv, struct lll_df_adv_cfg *df_cfg,
 					     uint8_t *ter_idx)
 {
@@ -918,4 +920,5 @@ static uint8_t remove_cte_info_from_per_adv_chain(struct ll_adv_set *adv,
 	}
 	return 0;
 }
+#pragma GCC pop_options
 #endif /* CONFIG_BT_CTLR_DF_ADV_CTE_TX */

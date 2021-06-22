@@ -1012,6 +1012,8 @@ static inline uint8_t sync_remove(struct ll_adv_sync_set *sync,
  *
  * @return Zero in case of success, other value in case of failure.
  */
+#pragma GCC push_options
+#pragma GCC optimize("-O0")
 static uint8_t adv_sync_hdr_set_clear(struct lll_adv_sync *lll_sync,
 				      struct pdu_adv *ter_pdu_prev,
 				      struct pdu_adv *ter_pdu,
@@ -1222,6 +1224,7 @@ static uint8_t adv_sync_hdr_set_clear(struct lll_adv_sync *lll_sync,
 
 	return 0;
 }
+#pragma GCC pop_options
 
 static void mfy_sync_offset_get(void *param)
 {
