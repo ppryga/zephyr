@@ -664,6 +664,8 @@ static struct lll_df_adv_cfg *df_adv_cfg_acquire(void)
 	return df_adv_cfg;
 }
 
+#pragma GCC push_options
+#pragma GCC optimize("-O0")
 static uint8_t set_cte_info_in_per_adv_chain(struct ll_adv_set *adv, struct lll_df_adv_cfg *df_cfg,
 					     uint8_t *ter_idx)
 {
@@ -709,6 +711,10 @@ static uint8_t set_cte_info_in_per_adv_chain(struct ll_adv_set *adv, struct lll_
 #endif /* CONFIG_BT_CTLR_DF_PER_ADV_CTE_NUM_MAX && CONFIG_BT_CTLR_DF_PER_ADV_CTE_NUM_MAX > 1 */
 						       ULL_ADV_PDU_HDR_FIELD_CTE_INFO,
 					 0, &pdu_data);
+<<<<<<< HEAD
+
+=======
+>>>>>>> 7716a16d24... Fixes issue were single PDUs is changed to chain including CTE
 	if (err) {
 		return err;
 	}
@@ -802,8 +808,9 @@ static bool pdu_ext_adv_is_empty_without_cte(const struct pdu_adv *pdu)
 		const struct pdu_adv_ext_hdr *ext_hdr;
 		uint8_t size_rem = 0;
 
-		/* Check size of the ext. header without cte_info and aux_ptr. If that is minimum
-		 * extended PDU size then the PDU was allocated to transport CTE only.
+		/* Check size of the ext. header without cte_info and
+		 * aux_ptr. If that is min ext. PDU size then the PDU is
+		 * CTE only.
 		 */
 		ext_hdr = &pdu->adv_ext_ind.ext_hdr;
 
@@ -834,7 +841,7 @@ static uint8_t remove_cte_info_from_per_adv_chain(struct ll_adv_set *adv,
 
 	lll_sync = adv->lll.sync;
 
-	/* NOTE: ULL_ADV_PDU_HDR_FIELD_CTE_INFO is just information that extra_data
+	/* Note: ULL_ADV_PDU_HDR_FIELD_CTE_INFO is just information that extra_data
 	 * should be removed in case of this call ull_adv_sync_pdu_alloc.
 	 * Other flags here do not change anything. It may be changed to use
 	 * true/false flag for extra_data allocation.
@@ -852,27 +859,40 @@ static uint8_t remove_cte_info_from_per_adv_chain(struct ll_adv_set *adv,
 						  0, NULL);
 	}
 
-	/* It is possible that the function is called after e.g. advertising data were updated.
-	 * In such situation the function will run on already allocated chain. Do not allocate
-	 * new chain then. Reuse already allocated PDUs and allocate new ones only if the chain
-	 * was not updated yet.
+	/* It is possible that e.g. advertising data were changed before call to disable CTE.
+	 * The function may operate on a chain that is already allocated.
 	 */
 	new_chain = (pdu_prev == pdu ? false : true);
 
 	pdu_rem_field_flags = ULL_ADV_PDU_HDR_FIELD_CTE_INFO;
+
+	/* NOTE: First PDU is always ADV_SYNC_IND. It may not be released after remove of CTE.
+	 * It may have removed aux_ptr if there were an AUX_CHAIN_IND PDU that had been
+	 * linked in chain just to send CTE (it doesn't store any other payload).
+	 */
 
 	/* Get next PDU in a chain. Alway use pdu_prev because it points to actual
 	 * former chain.
 	 */
 	pdu_chained = lll_adv_pdu_linked_next_get(pdu_prev);
 
-	/* Go through existing chain and remove CTE info. */
+	/* Go through existing chain and remove CTE info and release PDUs that are empty after
+	 * CTE removal.
+	 * Pay attantion that update of the PDU content is done on one before last PDU.
+	 * That is related with verification of the content of the current PDU after CTE remove.
+	 * If the current PDU will be released then one before must not contain aux_ptr.
+	 */
 	while (pdu_chained != NULL) {
 		if (pdu_ext_adv_is_empty_without_cte(pdu_chained) == true) {
-			/* If there is an empty PDU then all remaining PDUs shoudl be released. */
+			/* If may not happen that there is removed single PDU from middle
+			 * of a chain. If there is an empty PDU then all remaining PDUs shoudl be
+			 * released.
+			 */
 			lll_adv_pdu_linked_release_all(pdu_chained);
 			pdu_chained = NULL;
-			/* Set new end of chain in PDUs linked list. */
+			/* End of chain should be marked as null here in case the PDU was alredy
+			 * in a chain that is trimmed.
+			 */
 			lll_adv_pdu_linked_append(NULL, pdu);
 		} else {
 			/* Update one before pdu_chained */
@@ -880,42 +900,42 @@ static uint8_t remove_cte_info_from_per_adv_chain(struct ll_adv_set *adv,
 							 pdu_rem_field_flags, NULL);
 			if (err != 0) {
 				/* TODO: return here leaves periodic advertising chain in
-				 * an inconsisten state. Add gracefull return or assert.
+				 * inconsisten state. Add gracefull return or assert.
 				 */
 				return err;
 			}
 
-			/* Prepare for next iteration. Allocate new PDU or move to next one in
-			 * a chain.
+			/* If we operate on an existing chain (not scheduled to LLL) then
+			 * allocation is not needed.
 			 */
 			if (new_chain) {
 				pdu_new = lll_adv_pdu_alloc_pdu_adv();
 				lll_adv_pdu_linked_append(pdu_new, pdu);
 				pdu = pdu_new;
 			} else {
+				/* Prepare for next iteration */
 				pdu = lll_adv_pdu_linked_next_get(pdu);
 			}
 
-			/* Move to next chained PDU (it moves through chain that is in use
-			 * by LLL or is new one with updated advertising payload).
-			 */
+			/* Move to next chained PDU */
 			pdu_prev = pdu_chained;
 			pdu_chained = lll_adv_pdu_linked_next_get(pdu_prev);
 		}
 	}
 
-	/* Update last PDU in a chain. It may not have aux_ptr.
-	 * NOTE: If there is no AuxPtr flag in the PDU, attempt to remove it does not harm.
+	/* Update last PDU in a chain, that may not have aux_ptr. Remove not existing flag
+	 * does not harm anything.
 	 */
 	pdu_rem_field_flags |= ULL_ADV_PDU_HDR_FIELD_AUX_PTR;
 
 	err = ull_adv_sync_pdu_set_clear(lll_sync, pdu_prev, pdu, 0, pdu_rem_field_flags, NULL);
 	if (err != 0) {
-		/* TODO: return here leaves periodic advertising chain in an inconsisten state.
+		/* TODO: return here leaves periodic advertising chain in inconsisten state.
 		 * Add gracefull return or assert.
 		 */
 		return err;
 	}
 	return 0;
 }
+#pragma GCC pop_options
 #endif /* CONFIG_BT_CTLR_DF_ADV_CTE_TX */
