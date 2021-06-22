@@ -293,6 +293,8 @@ struct pdu_adv *lll_adv_pdu_alloc(struct lll_adv_pdu *pdu, uint8_t *idx)
 	return p;
 }
 
+uint32_t pdu_alloc_counter = 0;
+
 struct pdu_adv *lll_adv_pdu_alloc_pdu_adv(void)
 {
 	struct pdu_adv *p;
@@ -308,6 +310,7 @@ struct pdu_adv *lll_adv_pdu_alloc_pdu_adv(void)
 #if defined(CONFIG_BT_CTLR_ADV_PDU_LINK)
 		PDU_ADV_NEXT_PTR(p) = NULL;
 #endif
+		++pdu_alloc_counter;
 		return p;
 	}
 
@@ -316,6 +319,7 @@ struct pdu_adv *lll_adv_pdu_alloc_pdu_adv(void)
 #if defined(CONFIG_BT_CTLR_ADV_PDU_LINK)
 		PDU_ADV_NEXT_PTR(p) = NULL;
 #endif
+		++pdu_alloc_counter;
 		return p;
 	}
 
@@ -328,6 +332,7 @@ struct pdu_adv *lll_adv_pdu_alloc_pdu_adv(void)
 #if defined(CONFIG_BT_CTLR_ADV_PDU_LINK)
 	PDU_ADV_NEXT_PTR(p) = NULL;
 #endif
+	++pdu_alloc_counter;
 	return p;
 }
 
@@ -335,6 +340,7 @@ struct pdu_adv *lll_adv_pdu_alloc_pdu_adv(void)
 void lll_adv_pdu_release(struct pdu_adv *pdu)
 {
 	mem_release(pdu, &mem_pdu.free);
+	--pdu_alloc_counter;
 }
 
 void lll_adv_pdu_linked_release_all(struct pdu_adv *pdu_first)
