@@ -68,6 +68,13 @@ Memory region     Used Size  Region Size  %age Used
          RAM:        7936 B       128 KB      6.05%
     IDT_LIST:           0 B        32 KB      0.00%
 
+With added GNU compiler specific optimization, an overload of __gnu_cxx::__verbose_terminate_handler()
+the memory footprint decreased again to ~12%.
+
+Memory region     Used Size  Region Size  %age Used
+       FLASH:       63908 B       512 KB     12.19%
+         RAM:        7936 B       128 KB      6.05%
+    IDT_LIST:           0 B        32 KB      0.00%
 
 Building and Running
 ********************
