@@ -17,7 +17,12 @@
 #include <string>
 #endif /* CONFIG_USE_STD_STRING */
 
+#include <cstring>
+#include <zephyr/kernel.h>
+
 #if defined __GNUC__
+#include "unwind-cxx.h"
+
 namespace __gnu_cxx
 {
   /** @brief An overload of for the GNU implementation of terminate handler
@@ -34,6 +39,32 @@ namespace __gnu_cxx
 	std::terminate();
   }
 };
+
+K_HEAP_DEFINE(exception_heap, 1024);
+
+namespace __cxxabiv1 {
+	extern "C" void *__cxa_allocate_exception(std::size_t thrown_size) noexcept
+	{
+		thrown_size += sizeof(__cxxabiv1::__cxa_refcounted_exception);
+
+		void *ret = k_heap_alloc(&exception_heap, thrown_size, K_NO_WAIT);
+
+		if (!ret)
+			std::terminate();
+
+		memset(ret, 0, sizeof(__cxxabiv1::__cxa_refcounted_exception));
+
+		return (void *)((char *)ret + sizeof(__cxxabiv1::__cxa_refcounted_exception));
+	}
+
+
+	extern "C" void __cxa_free_exception(void *vptr) noexcept
+	{
+		char *ptr = (char *)vptr - sizeof(__cxxabiv1::__cxa_refcounted_exception);
+	
+		k_heap_free(&exception_heap, ptr);
+	}
+}
 #endif /* __GNUC__ */
 
 class hello_world

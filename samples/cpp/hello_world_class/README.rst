@@ -76,6 +76,22 @@ Memory region     Used Size  Region Size  %age Used
          RAM:        7936 B       128 KB      6.05%
     IDT_LIST:           0 B        32 KB      0.00%
 
+Custom exceptions memory allocator
+**********************************
+
+This is also GNU specific part, that is dengerous becasue it depends on particular version of libsupc++ library.
+In case there is a need to use some custom exceptions memory allocation, then there are two additional functions
+that need to be overloaded: __cxxabiv1::__cxa_allocate_exception and __cxxabiv1::__cxa_free_exception.
+
+In the sample application default `malloc()` and `free()` call were substituted with Zephyr's `k_heap_alloc()`
+and `k_heap_free()`. That caused increase in RAM usage by ~1KB, due to memory allocation for the local heap.
+
+Current memory usage is:
+Memory region     Used Size  Region Size  %age Used
+       FLASH:       64032 B       512 KB     12.21%
+         RAM:        8960 B       128 KB      6.84%
+    IDT_LIST:           0 B        32 KB      0.00%
+
 Building and Running
 ********************
 
