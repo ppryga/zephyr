@@ -3,6 +3,10 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+
+#include <exception>
+#include <stdexcept>
+
 #if defined(CONFIG_USE_STD_IOSTREAM)
 #include <iostream>
 #else
@@ -19,7 +23,7 @@ private:
 #if defined(CONFIG_USE_STD_STRING)
 	const std::string hello_str;
 #else
-  const char * hello_str;
+	const char * hello_str;
 #endif /* CONFIG_USE_STD_STRING */
 public:
 	hello_world() : hello_str("Hello C++, world!")
@@ -34,10 +38,16 @@ public:
 #if defined(CONFIG_USE_STD_STRING)
 		printf("%s %s\n", hello_str.c_str(), CONFIG_BOARD);
 #else
-    printf("%s %s\n", hello_str, CONFIG_BOARD);
+		printf("%s %s\n", hello_str, CONFIG_BOARD);
 #endif /* CONFIG_USE_STD_STRING */
 #endif /* CONFIG_USE_STD_IOSTREAM */
 	}
+
+	void throw_exception()
+	{
+		throw std::runtime_error("The exception");
+	}
+
 };
 
 int main(void)
@@ -45,6 +55,7 @@ int main(void)
 	hello_world hw;
 
 	hw.welcome();
+	hw.throw_exception();
 
 	return 0;
 }

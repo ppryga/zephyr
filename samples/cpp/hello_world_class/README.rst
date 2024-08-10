@@ -19,6 +19,9 @@ saved when stop using some features from STL.
 CONFIG_USE_STD_STRING enables use of std::string instread of raw char * for string sorage.
 CONFIG_USE_STD_IOSTREAM enables use of std::iostream for printing output.
 
+Memory usage with and without STL
+*********************************
+
 With options set to:
  - CONFIG_USE_STD_STRING=y
  - CONFIG_USE_STD_IOSTREAM=y
@@ -39,7 +42,7 @@ Memory region     Used Size  Region Size  %age Used
          RAM:        7936 B       128 KB      6.05%
     IDT_LIST:           0 B        32 KB      0.00%
 
-The difference is ~55%.
+The FLASH difference is ~55%.
 
 With options set to:
  - CONFIG_USE_STD_STRING=n
@@ -51,7 +54,20 @@ Memory region     Used Size  Region Size  %age Used
          RAM:        7872 B       128 KB      6.01%
     IDT_LIST:           0 B        32 KB      0.00%
 
-The difference is ~64%.
+The FLASH difference is ~64%.
+
+Memory usage with C++ exceptions use
+************************************
+
+When enabled C++ exceptions by CONFIG_CPP_EXCEPTIONS=y and CONFIG_CPP_RTTI=y
+the memory footprint changes. This time it increases by about 9% in comparison
+to FLASH usage without STL (10.40%).
+
+Memory region     Used Size  Region Size  %age Used
+       FLASH:      101860 B       512 KB     19.43%
+         RAM:        7936 B       128 KB      6.05%
+    IDT_LIST:           0 B        32 KB      0.00%
+
 
 Building and Running
 ********************
