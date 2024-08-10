@@ -1,0 +1,15 @@
+
+menu "Hello world C++"
+
+config USE_STD_STRING
+  bool "Use std::string type for string storage"
+  default n
+
+config USE_STD_IOSTREAM
+  bool "Use iostreams for printing. That severly increases use of FLASH memory"
+  default n
+  select USE_STD_STRING
+
+endmenu # Hello world C++
+
+source "Kconfig.zephyr"
